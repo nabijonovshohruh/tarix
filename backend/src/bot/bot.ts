@@ -1,4 +1,4 @@
-import { Bot, Context, InlineKeyboard } from "grammy";
+import { Bot, Context, GrammyError, HttpError, InlineKeyboard } from "grammy";
 import { env } from "../config/env";
 import { prisma } from "../db/prisma";
 
@@ -91,6 +91,20 @@ bot.command("help", async (ctx) => {
   );
 });
 
+// Central error boundary for every update-processing error (per-update
+// handler throws, failed API calls like replying to a user who has blocked
+// the bot, network blips, etc). Without this, grammy's default behavior is
+// to rethrow, which crashes the whole Node process — logging here instead
+// keeps the bot (and the API server sharing this process) alive.
 bot.catch((err) => {
-  console.error("Bot error:", err.error);
+  const ctx = err.ctx;
+  const e = err.error;
+
+  if (e instanceof GrammyError) {
+    console.error(`GrammyError while handling update ${ctx.update.update_id}:`, e.description);
+  } else if (e instanceof HttpError) {
+    console.error(`HttpError (network) while handling update ${ctx.update.update_id}:`, e.message);
+  } else {
+    console.error(`Unknown error while handling update ${ctx.update.update_id}:`, e);
+  }
 });
