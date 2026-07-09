@@ -20,17 +20,25 @@ export async function getMyDashboard(req: Request, res: Response) {
   res.json({ dashboard });
 }
 
+const roleValues = Object.values(Role) as string[];
+
 export async function listStudents(req: Request, res: Response) {
   const q = (req.query.q as string | undefined)?.trim();
+  const roleParam = req.query.role as string | undefined;
+  const role = roleParam && roleValues.includes(roleParam) ? (roleParam as Role) : undefined;
+
   const students = await prisma.student.findMany({
-    where: q
-      ? {
-          OR: [
-            { fullName: { contains: q, mode: "insensitive" } },
-            { username: { contains: q, mode: "insensitive" } },
-          ],
-        }
-      : undefined,
+    where: {
+      ...(role ? { role } : {}),
+      ...(q
+        ? {
+            OR: [
+              { fullName: { contains: q, mode: "insensitive" } },
+              { username: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    },
     orderBy: { createdAt: "desc" },
   });
   res.json({ students });

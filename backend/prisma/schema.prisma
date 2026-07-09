@@ -58,6 +58,12 @@ model Student {
   id                BigInt   @id @default(autoincrement())
   telegramId        BigInt   @unique
   fullName          String
+  // False until the bot's mandatory name-registration conversation completes
+  // (see bot/bot.ts) — every other bot command and the entire Mini App are
+  // locked while this is false. Independent of role: a guest can be fully
+  // registered (real name on file) while still awaiting an admin's promotion
+  // to STUDENT.
+  isRegistered      Boolean  @default(false)
   username          String?
   role              Role     @default(GUEST)
   groupName         String?

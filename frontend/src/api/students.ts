@@ -3,8 +3,13 @@ import { DbRole, Student, StudentDashboard } from "./types";
 
 export const getMyDashboard = () => get<{ dashboard: StudentDashboard }>("/students/me/dashboard");
 
-export const listStudents = (q?: string) =>
-  get<{ students: Student[] }>(`/students${q ? `?q=${encodeURIComponent(q)}` : ""}`);
+export const listStudents = (q?: string, role?: DbRole) => {
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (role) params.set("role", role);
+  const qs = params.toString();
+  return get<{ students: Student[] }>(`/students${qs ? `?${qs}` : ""}`);
+};
 
 export const getStudentGroups = () => get<{ groups: string[] }>("/students/groups");
 

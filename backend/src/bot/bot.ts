@@ -1,9 +1,14 @@
-import { Bot, InlineKeyboard } from "grammy";
+import { Bot, Context, InlineKeyboard } from "grammy";
 import { env } from "../config/env";
+import { prisma } from "../db/prisma";
 
 export const bot = new Bot(env.BOT_TOKEN);
 
-bot.command("start", async (ctx) => {
+const NAME_PROMPT =
+  "Xush kelibsiz! \"Majburiy Tarix\" botidan foydalanish uchun avval ism va " +
+  "familiyangizni to'liq holda yozib yuboring (masalan: Aliyev Vali).";
+
+async function sendWelcome(ctx: Context) {
   if (!env.WEBAPP_URL) {
     await ctx.reply(
       "Mini App manzili sozlanmagan. Iltimos, administratorga murojaat qiling."
@@ -18,6 +23,65 @@ bot.command("start", async (ctx) => {
       "Quyidagi tugma orqali testlar, davomat va imtihon bo'limlariga o'ting.",
     { reply_markup: keyboard }
   );
+}
+
+// Runs before every command/message handler. New Telegram accounts are
+// created here as GUEST + unregistered, and stay locked out of every other
+// command (and, via requireRegistered on the API side, the whole Mini App)
+// until they reply with plain text — which is captured as their real full
+// name — same one-time gate regardless of what they typed first (/start,
+// /help, or anything else).
+bot.use(async (ctx, next) => {
+  const from = ctx.from;
+  if (!from) return next();
+
+  const telegramId = BigInt(from.id);
+  let student = await prisma.student.findUnique({ where: { telegramId } });
+
+  if (!student) {
+    const fallbackName =
+      [from.first_name, from.last_name].filter(Boolean).join(" ").trim() || "Foydalanuvchi";
+    student = await prisma.student.create({
+      data: {
+        telegramId,
+        username: from.username,
+        fullName: fallbackName,
+        role: "GUEST",
+        isRegistered: false,
+      },
+    });
+  }
+
+  if (!student.isRegistered) {
+    const text = ctx.message?.text?.trim();
+    const isCommand = text?.startsWith("/") ?? false;
+
+    if (text && !isCommand) {
+      if (text.length < 2 || text.length > 100) {
+        await ctx.reply(
+          "Ism-familiya juda qisqa yoki uzun. Iltimos, to'liq ism va familiyangizni qayta kiriting."
+        );
+        return;
+      }
+
+      await prisma.student.update({
+        where: { telegramId },
+        data: { fullName: text, isRegistered: true },
+      });
+      await ctx.reply("Rahmat! Ro'yxatdan muvaffaqiyatli o'tdingiz.");
+      await sendWelcome(ctx);
+      return;
+    }
+
+    await ctx.reply(NAME_PROMPT);
+    return;
+  }
+
+  return next();
+});
+
+bot.command("start", async (ctx) => {
+  await sendWelcome(ctx);
 });
 
 bot.command("help", async (ctx) => {

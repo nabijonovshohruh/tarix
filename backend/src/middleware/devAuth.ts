@@ -15,7 +15,13 @@ export async function devAuth(req: Request, res: Response, next: NextFunction) {
   const fullName = req.header("x-dev-full-name") || `Dev User ${telegramIdHeader}`;
 
   try {
-    await upsertStudentAndAttach(req, BigInt(telegramIdHeader), fullName, undefined);
+    // Dev identities have no bot conversation to complete, so they're
+    // grandfathered as registered on creation, same as any pre-existing
+    // production account — the lock only applies to genuinely new Telegram
+    // Mini App visitors (see telegramAuth.ts).
+    await upsertStudentAndAttach(req, BigInt(telegramIdHeader), fullName, undefined, {
+      isRegisteredOnCreate: true,
+    });
     next();
   } catch (err) {
     next(err);

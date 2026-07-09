@@ -2,6 +2,7 @@ import { Router } from "express";
 import { env } from "../config/env";
 import { telegramAuth } from "../middleware/telegramAuth";
 import { devAuth } from "../middleware/devAuth";
+import { requireRegistered } from "../middleware/requireRegistered";
 import { authRouter } from "./auth.routes";
 import { testsRouter } from "./tests.routes";
 import { attendanceRouter } from "./attendance.routes";
@@ -21,6 +22,12 @@ if (env.allowDevAuth) {
 }
 
 apiRouter.use("/auth", authRouter);
+
+// Everything below requires a completed bot name-registration — /auth/me
+// stays open above so the frontend can learn isRegistered and render its
+// own lock screen instead of a bare 403.
+apiRouter.use(requireRegistered);
+
 apiRouter.use(testsRouter);
 apiRouter.use(attendanceRouter);
 apiRouter.use(examsRouter);

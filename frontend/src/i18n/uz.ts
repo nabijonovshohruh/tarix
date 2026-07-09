@@ -115,6 +115,11 @@ export const uz = {
     noActivity: "Hozircha faoliyat yo'q",
     testHistory: "Testlar tarixi",
   },
+  registration: {
+    locked: "Ro'yxatdan o'tish talab qilinadi",
+    lockedHint:
+      "Ilovadan foydalanish uchun avval botga o'ting va /start buyrug'idan so'ng ism-familiyangizni kiriting.",
+  },
   leaderboard: {
     title: "Reyting",
     allTime: "Barcha vaqt",
@@ -179,5 +184,11 @@ export const uz = {
     groupRequiredForStudent: "Talaba roli uchun guruh nomi kiritilishi shart",
     saveRole: "Saqlash",
     roleSaved: "Saqlandi",
+    studentsTab: "Talabalar",
+    guestsTab: "Mehmonlar",
+    promoteToStudent: "Talaba qilish",
+    confirmPromote: "Tasdiqlash",
+    promoteGroupPlaceholder: "Guruh nomi (masalan: 2025-Bahor)",
+    noGuests: "Hozircha ro'yxatdan o'tgan mehmonlar yo'q",
   },
 } as const;

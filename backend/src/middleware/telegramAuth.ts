@@ -16,12 +16,22 @@ export async function upsertStudentAndAttach(
   req: Request,
   telegramId: bigint,
   fullName: string,
-  username: string | undefined
+  username: string | undefined,
+  options: { isRegisteredOnCreate?: boolean } = {}
 ) {
+  // fullName is intentionally NOT overwritten on update: once a user has
+  // completed the bot's name-registration conversation (see bot/bot.ts),
+  // their self-reported real name must persist even as their raw Telegram
+  // profile name changes on subsequent Mini App requests.
   let student = await prisma.student.upsert({
     where: { telegramId },
-    update: { fullName, username },
-    create: { telegramId, fullName, username },
+    update: { username },
+    create: {
+      telegramId,
+      fullName,
+      username,
+      isRegistered: options.isRegisteredOnCreate ?? false,
+    },
   });
 
   if (env.adminTelegramIds.has(telegramId.toString()) && student.role !== "ADMIN") {
@@ -38,6 +48,7 @@ export async function upsertStudentAndAttach(
     username: student.username,
     role: student.role.toLowerCase() as AuthenticatedUser["role"],
     groupName: student.groupName,
+    isRegistered: student.isRegistered,
   };
   req.user = user;
 }

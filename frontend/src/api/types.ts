@@ -16,6 +16,7 @@ export interface AuthUser {
   username?: string | null;
   role: Role;
   groupName?: string | null;
+  isRegistered: boolean;
 }
 
 export interface Student {
@@ -25,6 +26,7 @@ export interface Student {
   username?: string | null;
   role: DbRole;
   groupName?: string | null;
+  isRegistered: boolean;
   createdAt: string;
 }
 

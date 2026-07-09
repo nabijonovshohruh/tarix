@@ -5,6 +5,7 @@ export interface AuthenticatedUser {
   username?: string | null;
   role: "guest" | "student" | "admin";
   groupName?: string | null;
+  isRegistered: boolean;
 }
 
 declare global {
