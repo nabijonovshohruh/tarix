@@ -31,6 +31,15 @@ async function sendWelcome(ctx: Context) {
 // until they reply with plain text — which is captured as their real full
 // name — same one-time gate regardless of what they typed first (/start,
 // /help, or anything else).
+//
+// The registration prompt is only ever sent in response to an actual
+// message (ctx.message set). Every other update type that still carries
+// ctx.from — my_chat_member (includes a user blocking the bot, delivered as
+// new_chat_member.status "kicked"), chat_member, callback_query, etc. — has
+// no message to reply to, and blindly replying to e.g. a user who just
+// blocked the bot throws an uncatchable-looking 403. Those updates just
+// fall through to next() so dedicated handlers (like bot.on("my_chat_member")
+// below) can deal with them without ever touching ctx.reply.
 bot.use(async (ctx, next) => {
   const from = ctx.from;
   if (!from) return next();
@@ -52,8 +61,8 @@ bot.use(async (ctx, next) => {
     });
   }
 
-  if (!student.isRegistered) {
-    const text = ctx.message?.text?.trim();
+  if (!student.isRegistered && ctx.message) {
+    const text = ctx.message.text?.trim();
     const isCommand = text?.startsWith("/") ?? false;
 
     if (text && !isCommand) {
@@ -89,6 +98,18 @@ bot.command("help", async (ctx) => {
     "/start — Mini App'ni ochish\n" +
       "Savollar bo'yicha o'qituvchingizga murojaat qiling."
   );
+});
+
+// A user blocking the bot arrives as a my_chat_member update with
+// new_chat_member.status === "kicked" — never attempt to message them here;
+// there's nothing to send a "kicked" user and Telegram will reject it with a
+// 403. Other transitions (rejoining, being restricted, etc.) currently need
+// no action.
+bot.on("my_chat_member", async (ctx) => {
+  const status = ctx.myChatMember.new_chat_member.status;
+  if (status === "kicked") {
+    return;
+  }
 });
 
 // Central error boundary for every update-processing error (per-update
