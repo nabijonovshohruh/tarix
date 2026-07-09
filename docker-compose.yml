@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tarix}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tarix}
+      POSTGRES_DB: ${POSTGRES_DB:-tarix}
+    ports:
+      - "5432:5432"
+    volumes:
+      - tarix_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tarix}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tarix}:${POSTGRES_PASSWORD:-tarix}@postgres:5432/${POSTGRES_DB:-tarix}?schema=public
+    ports:
+      - "3000:3000"
+
+volumes:
+  tarix_postgres_data:

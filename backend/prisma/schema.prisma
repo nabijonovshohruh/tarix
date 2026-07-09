@@ -1,0 +1,236 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Period {
+  QADIMGI_DUNYO
+  ORTA_ASRLAR
+  YANGI_DAVR
+  ENG_YANGI_DAVR
+}
+
+enum CorrectOption {
+  A
+  B
+  C
+  D
+}
+
+enum SessionStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum ExamStatus {
+  PASSED
+  FAILED
+}
+
+enum Role {
+  GUEST
+  STUDENT
+  ADMIN
+}
+
+// Only meaningful for periods other than QADIMGI_DUNYO, which keeps its flat
+// (no sub-category) topic list unchanged. For ORTA_ASRLAR/YANGI_DAVR/
+// ENG_YANGI_DAVR, the student first picks O'zbekiston tarixi or Jahon
+// tarixi before seeing that period's topics — enforced at the app layer in
+// tests.controller.ts (required when creating/updating a test whose period
+// isn't QADIMGI_DUNYO), not a DB constraint, since Prisma has no native
+// conditional-required-field support.
+enum SubCategory {
+  UZBEKISTON
+  JAHON
+}
+
+// role is a real, admin-manageable column (promote/demote + assign group via
+// PATCH /students/:id). ADMIN_TELEGRAM_IDS remains a "break-glass" bootstrap:
+// on every request, telegramAuth.ts force-upgrades (never downgrades) a
+// matching account to ADMIN, so env-configured teachers can never be locked
+// out even if their DB role is somehow wrong.
+model Student {
+  id                BigInt   @id @default(autoincrement())
+  telegramId        BigInt   @unique
+  fullName          String
+  username          String?
+  role              Role     @default(GUEST)
+  groupName         String?
+  createdAt         DateTime @default(now())
+
+  testResults       TestResult[]
+  attendanceRecords AttendanceRecord[]
+  examResults       ExamResult[]
+}
+
+model Test {
+  id          BigInt       @id @default(autoincrement())
+  title       String
+  period      Period
+  subCategory SubCategory?
+  isPublished Boolean      @default(false)
+  // Free-preview topics: guests may view/take these even though every other
+  // topic (and all exams) require student/admin. New topics default closed;
+  // the teacher opts individual topics into the free tier via the admin
+  // toggle (PUT /tests/:id { isFree }).
+  isFree      Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  questions Question[]
+  results   TestResult[]
+}
+
+model Question {
+  id            BigInt        @id @default(autoincrement())
+  testId        BigInt
+  test          Test          @relation(fields: [testId], references: [id], onDelete: Cascade)
+  questionText  String
+  optionA       String
+  optionB       String
+  optionC       String
+  optionD       String
+  correctAnswer CorrectOption
+  explanation   String?
+  order         Int           @default(0)
+
+  @@index([testId])
+}
+
+model TestResult {
+  id         BigInt       @id @default(autoincrement())
+  studentId  BigInt
+  student    Student      @relation(fields: [studentId], references: [id])
+  testId     BigInt
+  test       Test         @relation(fields: [testId], references: [id], onDelete: Cascade)
+  score      Int
+  percentage Float
+  createdAt  DateTime     @default(now())
+
+  answers    TestAnswer[]
+
+  @@index([studentId])
+  @@index([testId])
+}
+
+// One row per question per submission, fully denormalized (question text/
+// options/correctAnswer/explanation copied at submission time). questionId is
+// an unenforced reference (no @relation) so editing/deleting a Question later
+// never corrupts historical review data. Rows created before this model
+// existed have no TestAnswer rows — review is "unavailable" for those, not
+// backfilled (the original selections were never captured).
+model TestAnswer {
+  id             BigInt         @id @default(autoincrement())
+  resultId       BigInt
+  result         TestResult     @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  questionId     BigInt?
+  order          Int
+  questionText   String
+  optionA        String
+  optionB        String
+  optionC        String
+  optionD        String
+  correctAnswer  CorrectOption
+  explanation    String?
+  selectedOption CorrectOption?
+  isCorrect      Boolean
+
+  @@index([resultId])
+}
+
+model AttendanceSession {
+  id        BigInt        @id @default(autoincrement())
+  title     String
+  startTime DateTime      @default(now())
+  endTime   DateTime
+  status    SessionStatus @default(ACTIVE)
+  createdAt DateTime      @default(now())
+
+  records AttendanceRecord[]
+}
+
+model AttendanceRecord {
+  id        BigInt            @id @default(autoincrement())
+  studentId BigInt
+  student   Student           @relation(fields: [studentId], references: [id])
+  sessionId BigInt
+  session   AttendanceSession @relation(fields: [sessionId], references: [id])
+  createdAt DateTime          @default(now())
+
+  @@unique([studentId, sessionId])
+  @@index([sessionId])
+}
+
+model Exam {
+  id              BigInt   @id @default(autoincrement())
+  title           String
+  isPublished     Boolean  @default(false)
+  durationMinutes Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  questions ExamQuestion[]
+  results   ExamResult[]
+}
+
+model ExamQuestion {
+  id            BigInt        @id @default(autoincrement())
+  examId        BigInt
+  exam          Exam          @relation(fields: [examId], references: [id], onDelete: Cascade)
+  questionText  String
+  optionA       String
+  optionB       String
+  optionC       String
+  optionD       String
+  correctAnswer CorrectOption
+  explanation   String?
+  order         Int           @default(0)
+
+  @@index([examId])
+}
+
+model ExamResult {
+  id             BigInt       @id @default(autoincrement())
+  studentId      BigInt
+  student        Student      @relation(fields: [studentId], references: [id])
+  examId         BigInt
+  exam           Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  score          Int
+  totalQuestions Int
+  percentage     Float
+  status         ExamStatus
+  createdAt      DateTime     @default(now())
+
+  answers        ExamAnswer[]
+
+  // A student may attempt a given exam exactly once — enforced here at the
+  // DB level (not just app-level), same pattern as AttendanceRecord's
+  // one-mark-per-session constraint.
+  @@unique([studentId, examId])
+  @@index([examId])
+}
+
+// Mirrors TestAnswer for exams — see TestAnswer doc comment above.
+model ExamAnswer {
+  id             BigInt         @id @default(autoincrement())
+  resultId       BigInt
+  result         ExamResult     @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  questionId     BigInt?
+  order          Int
+  questionText   String
+  optionA        String
+  optionB        String
+  optionC        String
+  optionD        String
+  correctAnswer  CorrectOption
+  explanation    String?
+  selectedOption CorrectOption?
+  isCorrect      Boolean
+
+  @@index([resultId])
+}
