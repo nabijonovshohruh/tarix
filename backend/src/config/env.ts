@@ -14,6 +14,14 @@ const envSchema = z.object({
     .transform((v) => v === "true"),
   FRONTEND_ORIGIN: z.string().optional(),
   WEBHOOK_URL: z.string().optional(),
+  // Mandatory channel subscription (see services/channelSubscription.service.ts).
+  // Feature is entirely disabled (everyone treated as subscribed) unless
+  // CHANNEL_ID is set. Accepts "@username" (public channel) or a numeric
+  // chat id (e.g. "-1001234567890", private channel the bot is a member of).
+  CHANNEL_ID: z.string().optional(),
+  // Optional — for a public "@username" channel this is derived automatically
+  // if omitted (see getChannelUrl()).
+  CHANNEL_URL: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

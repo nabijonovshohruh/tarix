@@ -1,12 +1,32 @@
 import { Bot, Context, GrammyError, HttpError, InlineKeyboard } from "grammy";
 import { env } from "../config/env";
 import { prisma } from "../db/prisma";
+import { getChannelUrl, invalidateChannelSubscription, isChannelSubscriber } from "../services/channelSubscription.service";
 
 export const bot = new Bot(env.BOT_TOKEN);
+
+const CHECK_SUBSCRIPTION_ACTION = "check_subscription";
+const NOT_SUBSCRIBED_TOAST = "Siz hali kanalga a'zo bo'lmagansiz. Qo'shiling va qayta tekshiring.";
 
 const NAME_PROMPT =
   "Xush kelibsiz! \"Majburiy Tarix\" botidan foydalanish uchun avval ism va " +
   "familiyangizni to'liq holda yozib yuboring (masalan: Aliyev Vali).";
+
+function subscribeKeyboard() {
+  const keyboard = new InlineKeyboard();
+  const channelUrl = getChannelUrl();
+  if (channelUrl) {
+    keyboard.url("📢 Kanalga a'zo bo'lish", channelUrl).row();
+  }
+  return keyboard.text("✅ Tekshirish", CHECK_SUBSCRIPTION_ACTION);
+}
+
+async function sendSubscribePrompt(ctx: Context) {
+  await ctx.reply(
+    "Botdan va Mini App'dan foydalanish uchun avval kanalimizga a'zo bo'ling, so'ngra \"Tekshirish\" tugmasini bosing:",
+    { reply_markup: subscribeKeyboard() }
+  );
+}
 
 async function sendWelcome(ctx: Context) {
   if (!env.WEBAPP_URL) {
@@ -24,6 +44,53 @@ async function sendWelcome(ctx: Context) {
     { reply_markup: keyboard }
   );
 }
+
+// Mandatory channel subscription gate — runs first, before registration.
+// Entirely a no-op (isChannelSubscriber always resolves true) when CHANNEL_ID
+// isn't configured, so this is safe to leave wired in for deployments that
+// don't use the feature.
+//
+// Same non-message-update guard as the registration gate below: only ever
+// replies for real messages, and only ever answers the dedicated "Tekshirish"
+// callback — every other update type (my_chat_member, other callback
+// queries, etc.) falls through untouched so it can't break unrelated
+// handlers or throw trying to message someone it shouldn't.
+bot.use(async (ctx, next) => {
+  const from = ctx.from;
+  if (!from) return next();
+  if (!ctx.message && !ctx.callbackQuery) return next();
+  if (ctx.callbackQuery?.data === CHECK_SUBSCRIPTION_ACTION) return next();
+
+  const subscribed = await isChannelSubscriber(bot.api, BigInt(from.id));
+  if (subscribed) return next();
+
+  if (ctx.message) {
+    await sendSubscribePrompt(ctx);
+  } else if (ctx.callbackQuery) {
+    await ctx.answerCallbackQuery({ text: NOT_SUBSCRIBED_TOAST, show_alert: true });
+  }
+});
+
+bot.callbackQuery(CHECK_SUBSCRIPTION_ACTION, async (ctx) => {
+  const telegramId = BigInt(ctx.from.id);
+  invalidateChannelSubscription(telegramId);
+  const subscribed = await isChannelSubscriber(bot.api, telegramId);
+
+  if (!subscribed) {
+    await ctx.answerCallbackQuery({ text: NOT_SUBSCRIBED_TOAST, show_alert: true });
+    return;
+  }
+
+  await ctx.answerCallbackQuery({ text: "Obuna tasdiqlandi! ✅" });
+  await ctx.deleteMessage().catch(() => undefined);
+
+  const student = await prisma.student.findUnique({ where: { telegramId } });
+  if (student?.isRegistered) {
+    await sendWelcome(ctx);
+  } else {
+    await ctx.reply(NAME_PROMPT);
+  }
+});
 
 // Runs before every command/message handler. New Telegram accounts are
 // created here as GUEST + unregistered, and stay locked out of every other

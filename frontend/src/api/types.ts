@@ -17,6 +17,7 @@ export interface AuthUser {
   role: Role;
   groupName?: string | null;
   isRegistered: boolean;
+  channelSubscribed: boolean;
 }
 
 export interface Student {

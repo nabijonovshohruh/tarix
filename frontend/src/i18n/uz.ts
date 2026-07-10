@@ -126,6 +126,13 @@ export const uz = {
     lockedHint:
       "Ilovadan foydalanish uchun avval botga o'ting va /start buyrug'idan so'ng ism-familiyangizni kiriting.",
   },
+  channelSubscription: {
+    locked: "Kanalga a'zo bo'lish talab qilinadi",
+    lockedHint: "Ilovadan foydalanish uchun avval rasmiy kanalimizga a'zo bo'ling.",
+    openChannel: "Kanalga o'tish",
+    recheck: "Tekshirdim",
+    stillNotSubscribed: "Siz hali kanalga a'zo bo'lmagansiz. Qo'shiling va qayta urinib ko'ring.",
+  },
   leaderboard: {
     title: "Reyting",
     allTime: "Barcha vaqt",

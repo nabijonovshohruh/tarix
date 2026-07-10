@@ -6,6 +6,7 @@ export interface AuthenticatedUser {
   role: "guest" | "student" | "admin";
   groupName?: string | null;
   isRegistered: boolean;
+  channelSubscribed: boolean;
 }
 
 declare global {

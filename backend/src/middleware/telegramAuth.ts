@@ -3,6 +3,8 @@ import { env } from "../config/env";
 import { prisma } from "../db/prisma";
 import { validateInitData } from "../utils/telegramValidate";
 import { AuthenticatedUser } from "../types/express";
+import { bot } from "../bot/bot";
+import { isChannelSubscriber } from "../services/channelSubscription.service";
 
 /**
  * role is a real, admin-manageable DB column now (see Student.role). This
@@ -17,7 +19,7 @@ export async function upsertStudentAndAttach(
   telegramId: bigint,
   fullName: string,
   username: string | undefined,
-  options: { isRegisteredOnCreate?: boolean } = {}
+  options: { isRegisteredOnCreate?: boolean; bypassChannelCheck?: boolean } = {}
 ) {
   // fullName is intentionally NOT overwritten on update: once a user has
   // completed the bot's name-registration conversation (see bot/bot.ts),
@@ -41,6 +43,10 @@ export async function upsertStudentAndAttach(
     });
   }
 
+  const channelSubscribed = options.bypassChannelCheck
+    ? true
+    : await isChannelSubscriber(bot.api, telegramId);
+
   const user: AuthenticatedUser = {
     id: student.id,
     telegramId: student.telegramId,
@@ -49,6 +55,7 @@ export async function upsertStudentAndAttach(
     role: student.role.toLowerCase() as AuthenticatedUser["role"],
     groupName: student.groupName,
     isRegistered: student.isRegistered,
+    channelSubscribed,
   };
   req.user = user;
 }

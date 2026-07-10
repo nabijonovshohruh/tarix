@@ -3,6 +3,7 @@ import { env } from "../config/env";
 import { telegramAuth } from "../middleware/telegramAuth";
 import { devAuth } from "../middleware/devAuth";
 import { requireRegistered } from "../middleware/requireRegistered";
+import { requireChannelSubscription } from "../middleware/requireChannelSubscription";
 import { authRouter } from "./auth.routes";
 import { testsRouter } from "./tests.routes";
 import { attendanceRouter } from "./attendance.routes";
@@ -23,9 +24,11 @@ if (env.allowDevAuth) {
 
 apiRouter.use("/auth", authRouter);
 
-// Everything below requires a completed bot name-registration — /auth/me
-// stays open above so the frontend can learn isRegistered and render its
-// own lock screen instead of a bare 403.
+// Everything below requires being subscribed to the mandatory channel, then
+// a completed bot name-registration — /auth/* stays open above so the
+// frontend can learn both states and render its own lock screens instead of
+// a bare 403. Channel check runs first, matching the bot-side gate order.
+apiRouter.use(requireChannelSubscription);
 apiRouter.use(requireRegistered);
 
 apiRouter.use(testsRouter);
