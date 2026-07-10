@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { Header } from "../../../components/layout/Header";
 import { Card } from "../../../components/common/Card";
 import { Button } from "../../../components/common/Button";
+import { Badge } from "../../../components/common/Badge";
 import { EmptyState } from "../../../components/common/EmptyState";
 import { QuestionEditCard } from "../../../components/admin/QuestionEditCard";
 import { uz } from "../../../i18n/uz";
@@ -15,7 +16,7 @@ import {
   updateExamQuestion,
 } from "../../../api/exams";
 import { ApiError } from "../../../api/client";
-import { BulkUploadResult, CorrectOption, Exam, ExamResult, Question } from "../../../api/types";
+import { BulkUploadResult, CorrectOption, Exam, ExamResult, Question, Student } from "../../../api/types";
 
 const optionKeys: CorrectOption[] = ["A", "B", "C", "D"];
 const optionLabels: Record<CorrectOption, string> = {
@@ -45,6 +46,7 @@ export function AdminExamEditScreen() {
   const { examId } = useParams<{ examId: string }>();
   const [exam, setExam] = useState<Exam | null>(null);
   const [results, setResults] = useState<ExamResult[] | null>(null);
+  const [notParticipated, setNotParticipated] = useState<Student[] | null>(null);
   const [form, setForm] = useState(emptyQuestion);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -55,7 +57,10 @@ export function AdminExamEditScreen() {
   const load = () => {
     if (!examId) return;
     getExam(examId).then(({ exam }) => setExam(exam));
-    getExamResults(examId).then(({ results }) => setResults(results));
+    getExamResults(examId).then(({ results, notParticipated }) => {
+      setResults(results);
+      setNotParticipated(notParticipated);
+    });
   };
 
   useEffect(load, [examId]);
@@ -211,7 +216,9 @@ export function AdminExamEditScreen() {
         </Card>
 
         <div>
-          <h2 className="mb-2 text-sm font-semibold text-slate-500 dark:text-slate-400">{uz.admin.viewResults}</h2>
+          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+            {uz.exams.participated} <Badge tone="success">{results?.length ?? 0}</Badge>
+          </h2>
           {results?.length === 0 && <EmptyState />}
           <div className="space-y-2">
             {results?.map((r) => (
@@ -220,6 +227,20 @@ export function AdminExamEditScreen() {
                 <p className="text-sm">
                   {r.percentage}% · {r.status === "PASSED" ? uz.exams.passed : uz.exams.failed}
                 </p>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+            {uz.exams.notParticipated} <Badge tone="danger">{notParticipated?.length ?? 0}</Badge>
+          </h2>
+          {notParticipated?.length === 0 && <EmptyState />}
+          <div className="space-y-2">
+            {notParticipated?.map((s) => (
+              <Card key={s.id} className="py-2.5 text-sm">
+                {s.fullName}
               </Card>
             ))}
           </div>

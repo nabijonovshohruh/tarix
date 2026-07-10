@@ -104,6 +104,12 @@ export const uz = {
     reviewMistakes: "Xatolar ustida ishlash",
     alreadyTaken: "Siz bu imtihonni topshirgansiz!",
     yourScore: "Sizning natijangiz",
+    notStarted: "Imtihon hali boshlanmagan",
+    windowClosed: "Imtihon vaqti tugagan",
+    scheduledStart: "Boshlanishi",
+    scheduledEnd: "Tugashi",
+    participated: "Ishtirok etganlar",
+    notParticipated: "Ishtirok etmaganlar",
   },
   dashboard: {
     title: "Mening natijalarim",
@@ -190,5 +196,9 @@ export const uz = {
     confirmPromote: "Tasdiqlash",
     promoteGroupPlaceholder: "Guruh nomi (masalan: 2025-Bahor)",
     noGuests: "Hozircha ro'yxatdan o'tgan mehmonlar yo'q",
+    examStart: "Boshlanish vaqti (ixtiyoriy)",
+    examEnd: "Tugash vaqti (ixtiyoriy)",
+    setSchedule: "Vaqtni belgilash",
+    scheduleSaved: "Vaqt saqlandi",
   },
 } as const;

@@ -6,16 +6,27 @@ import { HttpError } from "../middleware/errorHandler";
 import { buildAnswerSnapshots, gradeSubmission, examStatusFor } from "../services/scoring.service";
 import { parseQuestionsWorkbook } from "../services/bulkUpload.service";
 
-const examInputSchema = z.object({
-  title: z.string().min(1),
-  durationMinutes: z.number().int().positive().optional(),
-});
+const scheduleRefinement = (data: { startTime?: Date | null; endTime?: Date | null }) =>
+  !data.startTime || !data.endTime || data.endTime > data.startTime;
 
-const examUpdateSchema = z.object({
-  title: z.string().min(1).optional(),
-  durationMinutes: z.number().int().positive().nullable().optional(),
-  isPublished: z.boolean().optional(),
-});
+const examInputSchema = z
+  .object({
+    title: z.string().min(1),
+    durationMinutes: z.number().int().positive().optional(),
+    startTime: z.coerce.date().optional(),
+    endTime: z.coerce.date().optional(),
+  })
+  .refine(scheduleRefinement, { message: "endTime must be after startTime", path: ["endTime"] });
+
+const examUpdateSchema = z
+  .object({
+    title: z.string().min(1).optional(),
+    durationMinutes: z.number().int().positive().nullable().optional(),
+    isPublished: z.boolean().optional(),
+    startTime: z.coerce.date().nullable().optional(),
+    endTime: z.coerce.date().nullable().optional(),
+  })
+  .refine(scheduleRefinement, { message: "endTime must be after startTime", path: ["endTime"] });
 
 const questionInputSchema = z.object({
   questionText: z.string().min(1),
@@ -40,6 +51,19 @@ const submitSchema = z.object({
 function stripAnswer<T extends { correctAnswer: CorrectOption; explanation: string | null }>(q: T) {
   const { correctAnswer, explanation, ...rest } = q;
   return rest;
+}
+
+// Separate from durationMinutes (the per-attempt countdown once a student
+// starts) — this is the overall window during which the exam can be opened
+// or submitted at all. Never called for admins.
+function assertExamWindowOpen(exam: { startTime: Date | null; endTime: Date | null }) {
+  const now = new Date();
+  if (exam.startTime && now < exam.startTime) {
+    throw new HttpError(403, "Imtihon hali boshlanmagan");
+  }
+  if (exam.endTime && now > exam.endTime) {
+    throw new HttpError(403, "Imtihon vaqti tugagan");
+  }
 }
 
 export async function listExams(req: Request, res: Response) {
@@ -74,6 +98,13 @@ export async function getExam(req: Request, res: Response) {
     : await prisma.examResult.findUnique({
         where: { studentId_examId: { studentId: req.user!.id, examId: id } },
       });
+
+  // A student who already submitted gets their locked result regardless of
+  // the window (it stands even after the window closes); otherwise the
+  // scheduling window gates opening the exam at all. Admins always bypass.
+  if (!isAdmin && !myResult) {
+    assertExamWindowOpen(exam);
+  }
 
   res.json({
     exam: {
@@ -161,6 +192,10 @@ export async function submitExam(req: Request, res: Response) {
   });
   if (existing) throw new HttpError(409, "Siz bu imtihonni topshirgansiz!");
 
+  // Route is student-only (see exams.routes.ts), so this always applies —
+  // no admin bypass needed here unlike getExam.
+  assertExamWindowOpen(exam);
+
   const grade = gradeSubmission(exam.questions, answers);
   const status = examStatusFor(grade.percentage);
   const snapshots = buildAnswerSnapshots(exam.questions, answers);
@@ -204,12 +239,22 @@ export async function getExamResultReview(req: Request, res: Response) {
 
 export async function getExamResults(req: Request, res: Response) {
   const examId = BigInt(req.params.id);
-  const results = await prisma.examResult.findMany({
-    where: { examId },
-    include: { student: true },
-    orderBy: { createdAt: "desc" },
-  });
-  res.json({ results });
+  const [results, allStudents] = await Promise.all([
+    prisma.examResult.findMany({
+      where: { examId },
+      include: { student: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    // Same paid-student population as the attendance roster — guests were
+    // never eligible to take the exam in the first place (route requires
+    // role "student"), so they don't belong on a "didn't participate" list.
+    prisma.student.findMany({ where: { role: "STUDENT" }, orderBy: { fullName: "asc" } }),
+  ]);
+
+  const participatedIds = new Set(results.map((r) => r.studentId.toString()));
+  const notParticipated = allStudents.filter((s) => !participatedIds.has(s.id.toString()));
+
+  res.json({ results, notParticipated });
 }
 
 export async function getMyExamResults(req: Request, res: Response) {

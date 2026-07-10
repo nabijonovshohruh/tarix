@@ -57,8 +57,11 @@ export async function getSessionRoster(sessionId: bigint) {
       where: { sessionId },
       include: { student: true },
     }),
+    // Only paid/enrolled students count toward the roster — guests (and
+    // admins) are never expected to attend and shouldn't pad the "absent"
+    // list or skew the attendance percentage.
     prisma.student.findMany({
-      where: { createdAt: { lte: session.startTime } },
+      where: { role: "STUDENT", createdAt: { lte: session.startTime } },
     }),
   ]);
 

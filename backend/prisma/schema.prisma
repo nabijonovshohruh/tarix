@@ -173,12 +173,19 @@ model AttendanceRecord {
 }
 
 model Exam {
-  id              BigInt   @id @default(autoincrement())
+  id              BigInt    @id @default(autoincrement())
   title           String
-  isPublished     Boolean  @default(false)
+  isPublished     Boolean   @default(false)
   durationMinutes Int?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  // Optional scheduling window (separate from durationMinutes, which is the
+  // per-attempt countdown once a student starts): when set, the exam can
+  // only be opened/submitted between startTime and endTime. NULL means no
+  // restriction — existing exams are unaffected. Enforced in
+  // exams.controller.ts (getExam/submitExam), bypassed entirely for admins.
+  startTime       DateTime?
+  endTime         DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   questions ExamQuestion[]
   results   ExamResult[]

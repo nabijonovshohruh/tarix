@@ -1,5 +1,5 @@
 import { get, post, postForm, put, del } from "./client";
-import { BulkUploadResult, CorrectOption, Exam, ExamResult, GradeResult, Question } from "./types";
+import { BulkUploadResult, CorrectOption, Exam, ExamResult, GradeResult, Question, Student } from "./types";
 
 export const listExams = (params?: { all?: boolean }) => {
   const qs = params?.all ? "?all=true" : "";
@@ -9,12 +9,22 @@ export const listExams = (params?: { all?: boolean }) => {
 export const getExam = (id: string) =>
   get<{ exam: Exam; myResult: ExamResult | null }>(`/exams/${id}`);
 
-export const createExam = (data: { title: string; durationMinutes?: number }) =>
-  post<{ exam: Exam }>("/exams", data);
+export const createExam = (data: {
+  title: string;
+  durationMinutes?: number;
+  startTime?: string;
+  endTime?: string;
+}) => post<{ exam: Exam }>("/exams", data);
 
 export const updateExam = (
   id: string,
-  data: Partial<{ title: string; durationMinutes: number | null; isPublished: boolean }>
+  data: Partial<{
+    title: string;
+    durationMinutes: number | null;
+    isPublished: boolean;
+    startTime: string | null;
+    endTime: string | null;
+  }>
 ) => put<{ exam: Exam }>(`/exams/${id}`, data);
 
 export const deleteExam = (id: string) => del(`/exams/${id}`);
@@ -32,7 +42,8 @@ export const submitExam = (
   answers: { questionId: string; selectedOption: CorrectOption }[]
 ) => post<{ result: ExamResult; grade: GradeResult }>(`/exams/${examId}/submit`, { answers });
 
-export const getExamResults = (examId: string) => get<{ results: ExamResult[] }>(`/exams/${examId}/results`);
+export const getExamResults = (examId: string) =>
+  get<{ results: ExamResult[]; notParticipated: Student[] }>(`/exams/${examId}/results`);
 
 export const getMyExamResults = () => get<{ results: ExamResult[] }>("/exam-results/me");
 

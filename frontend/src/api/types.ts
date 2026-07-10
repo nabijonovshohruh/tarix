@@ -88,6 +88,8 @@ export interface Exam {
   title: string;
   isPublished: boolean;
   durationMinutes?: number | null;
+  startTime?: string | null;
+  endTime?: string | null;
   createdAt: string;
   updatedAt: string;
   questions?: Question[];

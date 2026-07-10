@@ -26,17 +26,23 @@ export function ExamTakingScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const answersRef = useRef(answers);
   answersRef.current = answers;
 
   useEffect(() => {
     if (!examId || isGuest) return;
-    getExam(examId).then(({ exam, myResult }) => {
-      setExam(exam);
-      setMyResult(myResult);
-      if (!myResult && exam.durationMinutes) setSecondsLeft(exam.durationMinutes * 60);
-      setLoaded(true);
-    });
+    getExam(examId)
+      .then(({ exam, myResult }) => {
+        setExam(exam);
+        setMyResult(myResult);
+        if (!myResult && exam.durationMinutes) setSecondsLeft(exam.durationMinutes * 60);
+        setLoaded(true);
+      })
+      .catch((err) => {
+        setLoadError(err instanceof ApiError ? err.message : uz.common.error);
+        setLoaded(true);
+      });
   }, [examId, isGuest]);
 
   const handleFinish = async () => {
@@ -75,6 +81,20 @@ export function ExamTakingScreen() {
       <div>
         <Header title={uz.nav.exams} showBack />
         <GuestLock />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div>
+        <Header title={uz.nav.exams} showBack />
+        <div className="p-4">
+          <Card className="space-y-3 text-center">
+            <p className="text-3xl">🔒</p>
+            <p className="text-base font-semibold text-red-600 dark:text-red-400">{loadError}</p>
+          </Card>
+        </div>
       </div>
     );
   }
