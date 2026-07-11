@@ -1,6 +1,20 @@
 export type Period = "QADIMGI_DUNYO" | "ORTA_ASRLAR" | "YANGI_DAVR" | "ENG_YANGI_DAVR";
 export type SubCategory = "UZBEKISTON" | "JAHON";
 export type MaterialSection = "DARSLIKLAR" | "MUHIM_QOLLANMALAR" | "UMUMIY_SERTIFIKAT" | "MAVZULASHGAN_SERTIFIKAT";
+// Only meaningful when section is MAVZULASHGAN_SERTIFIKAT — same
+// relationship as Period/SubCategory (see backend schema comment).
+export type MaterialSubSection =
+  | "GRADE_6"
+  | "GRADE_7_JAHON"
+  | "GRADE_7_UZBEKISTON"
+  | "GRADE_8_JAHON"
+  | "GRADE_8_UZBEKISTON"
+  | "GRADE_9_JAHON"
+  | "GRADE_9_UZBEKISTON"
+  | "GRADE_10_JAHON"
+  | "GRADE_10_UZBEKISTON"
+  | "GRADE_11_JAHON"
+  | "GRADE_11_UZBEKISTON";
 // Pure UI grouping — each MaterialSection value belongs to exactly one of
 // these two top-level categories (see backend/prisma/schema.prisma's comment
 // on the MaterialSection enum).
@@ -184,6 +198,7 @@ export interface Material {
   id: string;
   title: string;
   section: MaterialSection;
+  subSection: MaterialSubSection | null;
   isPremium: boolean;
   isPublished: boolean;
   createdAt: string;

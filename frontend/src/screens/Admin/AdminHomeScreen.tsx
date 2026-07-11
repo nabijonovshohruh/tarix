@@ -12,7 +12,8 @@ const sections = [
   { to: "/admin/attendance", icon: "🗓️", title: uz.admin.attendanceManagement },
   { to: "/admin/exams", icon: "📝", title: uz.admin.examManagement },
   { to: "/admin/students", icon: "👥", title: uz.admin.studentManagement },
-  { to: "/admin/materials", icon: "📁", title: uz.admin.materialManagement },
+  { to: "/admin/materials/guides", icon: "📖", title: uz.admin.guidesManagement },
+  { to: "/admin/materials/certificates", icon: "🎓", title: uz.admin.certificatesManagement },
 ];
 
 export function AdminHomeScreen() {

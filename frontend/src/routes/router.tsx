@@ -25,7 +25,8 @@ import { AdminStudentDetailScreen } from "../screens/Admin/Students/AdminStudent
 import { MaterialCategoryScreen } from "../screens/Materials/MaterialCategoryScreen";
 import { MaterialListScreen } from "../screens/Materials/MaterialListScreen";
 import { MaterialDetailScreen } from "../screens/Materials/MaterialDetailScreen";
-import { AdminMaterialsListScreen } from "../screens/Admin/Materials/AdminMaterialsListScreen";
+import { AdminGuidesManagementScreen } from "../screens/Admin/Materials/AdminGuidesManagementScreen";
+import { AdminCertificatesManagementScreen } from "../screens/Admin/Materials/AdminCertificatesManagementScreen";
 
 export const router = createBrowserRouter([
   {
@@ -44,6 +45,7 @@ export const router = createBrowserRouter([
 
       { path: "/materials/:category", element: <MaterialCategoryScreen /> },
       { path: "/materials/section/:section", element: <MaterialListScreen /> },
+      { path: "/materials/section/:section/:subSection", element: <MaterialListScreen /> },
       { path: "/materials/item/:id", element: <MaterialDetailScreen /> },
 
       { path: "/exams", element: <ExamListScreen /> },
@@ -142,10 +144,18 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "/admin/materials",
+        path: "/admin/materials/guides",
         element: (
           <RequireRole role="admin">
-            <AdminMaterialsListScreen />
+            <AdminGuidesManagementScreen />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "/admin/materials/certificates",
+        element: (
+          <RequireRole role="admin">
+            <AdminCertificatesManagementScreen />
           </RequireRole>
         ),
       },

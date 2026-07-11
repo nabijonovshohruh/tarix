@@ -260,6 +260,26 @@ enum MaterialSection {
   MAVZULASHGAN_SERTIFIKAT
 }
 
+// Only meaningful for MAVZULASHGAN_SERTIFIKAT, which the student further
+// narrows down by grade/subject before seeing a flat material list — every
+// other section keeps its original flat list unchanged. Enforced at the app
+// layer in materials.controller.ts (required when section is
+// MAVZULASHGAN_SERTIFIKAT, forced to null otherwise), not a DB constraint,
+// mirroring Test.subCategory's relationship with Period.
+enum MaterialSubSection {
+  GRADE_6
+  GRADE_7_JAHON
+  GRADE_7_UZBEKISTON
+  GRADE_8_JAHON
+  GRADE_8_UZBEKISTON
+  GRADE_9_JAHON
+  GRADE_9_UZBEKISTON
+  GRADE_10_JAHON
+  GRADE_10_UZBEKISTON
+  GRADE_11_JAHON
+  GRADE_11_UZBEKISTON
+}
+
 // Files are never stored on our server — fileId is a Telegram file_id,
 // obtained by relaying the admin's upload through the bot (sendDocument to
 // the uploading admin's own chat) and capturing the response. The same
@@ -272,6 +292,7 @@ model Material {
   title       String
   description String
   section     MaterialSection
+  subSection  MaterialSubSection?
   fileId      String
   fileName    String
   // "Bepul" when false — guests may download it too, same isFree/guest
@@ -283,4 +304,5 @@ model Material {
   updatedAt   DateTime        @updatedAt
 
   @@index([section])
+  @@index([subSection])
 }

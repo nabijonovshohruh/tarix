@@ -8,21 +8,61 @@ import { EmptyState } from "../../components/common/EmptyState";
 import { uz } from "../../i18n/uz";
 import { useAuth } from "../../context/AuthContext";
 import { listMaterials } from "../../api/materials";
-import { Material, MaterialSection } from "../../api/types";
+import { Material, MaterialSection, MaterialSubSection } from "../../api/types";
+
+const grades: MaterialSubSection[] = [
+  "GRADE_6",
+  "GRADE_7_JAHON",
+  "GRADE_7_UZBEKISTON",
+  "GRADE_8_JAHON",
+  "GRADE_8_UZBEKISTON",
+  "GRADE_9_JAHON",
+  "GRADE_9_UZBEKISTON",
+  "GRADE_10_JAHON",
+  "GRADE_10_UZBEKISTON",
+  "GRADE_11_JAHON",
+  "GRADE_11_UZBEKISTON",
+];
 
 export function MaterialListScreen() {
-  const { section } = useParams<{ section: MaterialSection }>();
+  const { section, subSection } = useParams<{ section: MaterialSection; subSection?: MaterialSubSection }>();
   const { isGuest } = useAuth();
   const [materials, setMaterials] = useState<Material[] | null>(null);
 
+  // Only MAVZULASHGAN_SERTIFIKAT has a further grade/subject picker step —
+  // every other section keeps its original flat list, mirroring Test's
+  // Period/SubCategory relationship (see TestListScreen.tsx).
+  const needsGradeChoice = section === "MAVZULASHGAN_SERTIFIKAT" && !subSection;
+
   useEffect(() => {
-    if (!section) return;
-    listMaterials({ section }).then(({ materials }) => setMaterials(materials));
-  }, [section]);
+    if (!section || needsGradeChoice) return;
+    listMaterials({ section, subSection }).then(({ materials }) => setMaterials(materials));
+  }, [section, subSection, needsGradeChoice]);
+
+  if (needsGradeChoice) {
+    return (
+      <div>
+        <Header title={section ? uz.materials[section] : ""} showBack />
+        <div className="space-y-3 p-4">
+          <p className="text-sm text-slate-500 dark:text-slate-400">{uz.materials.selectGrade}</p>
+          {grades.map((grade) => (
+            <Link key={grade} to={`/materials/section/${section}/${grade}`}>
+              <Card className="transition hover:border-brand-300 active:scale-[0.99]">
+                <p className="font-semibold">{uz.materials[grade]}</p>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const title = section ? uz.materials[section] : "";
+  const subtitle = subSection ? uz.materials[subSection] : undefined;
 
   return (
     <div>
-      <Header title={section ? uz.materials[section] : ""} showBack />
+      <Header title={title} subtitle={subtitle} showBack />
       <div className="space-y-3 p-4">
         {materials === null && <Spinner />}
         {materials?.length === 0 && <EmptyState message={uz.materials.noMaterials} />}
