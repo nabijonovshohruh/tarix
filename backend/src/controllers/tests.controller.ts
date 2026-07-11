@@ -85,7 +85,9 @@ export async function listTests(req: Request, res: Response) {
       ...(subCategory ? { subCategory } : {}),
       ...(includeAll ? {} : { isPublished: true }),
     },
-    orderBy: { createdAt: "desc" },
+    // Oldest first — topics are uploaded in sequence (1-mavzu, 2-mavzu, ...)
+    // and must appear in that same order, same fix as Material's listing.
+    orderBy: { createdAt: "asc" },
     include: { _count: { select: { questions: true } } },
   });
 
