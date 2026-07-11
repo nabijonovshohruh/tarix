@@ -22,6 +22,10 @@ import { AdminExamsListScreen } from "../screens/Admin/Exams/AdminExamsListScree
 import { AdminExamEditScreen } from "../screens/Admin/Exams/AdminExamEditScreen";
 import { AdminStudentsListScreen } from "../screens/Admin/Students/AdminStudentsListScreen";
 import { AdminStudentDetailScreen } from "../screens/Admin/Students/AdminStudentDetailScreen";
+import { MaterialCategoryScreen } from "../screens/Materials/MaterialCategoryScreen";
+import { MaterialListScreen } from "../screens/Materials/MaterialListScreen";
+import { MaterialDetailScreen } from "../screens/Materials/MaterialDetailScreen";
+import { AdminMaterialsListScreen } from "../screens/Admin/Materials/AdminMaterialsListScreen";
 
 export const router = createBrowserRouter([
   {
@@ -37,6 +41,10 @@ export const router = createBrowserRouter([
       { path: "/tests/:testId/result/:resultId/review", element: <ReviewScreen kind="test" /> },
 
       { path: "/attendance", element: <AttendanceScreen /> },
+
+      { path: "/materials/:category", element: <MaterialCategoryScreen /> },
+      { path: "/materials/section/:section", element: <MaterialListScreen /> },
+      { path: "/materials/item/:id", element: <MaterialDetailScreen /> },
 
       { path: "/exams", element: <ExamListScreen /> },
       { path: "/exams/:examId/take", element: <ExamTakingScreen /> },
@@ -130,6 +138,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole role="admin">
             <AdminStudentDetailScreen />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "/admin/materials",
+        element: (
+          <RequireRole role="admin">
+            <AdminMaterialsListScreen />
           </RequireRole>
         ),
       },

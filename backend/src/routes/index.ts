@@ -11,6 +11,7 @@ import { examsRouter } from "./exams.routes";
 import { studentsRouter } from "./students.routes";
 import { analyticsRouter } from "./analytics.routes";
 import { leaderboardRouter } from "./leaderboard.routes";
+import { materialsRouter } from "./materials.routes";
 
 export const apiRouter = Router();
 
@@ -37,3 +38,4 @@ apiRouter.use(examsRouter);
 apiRouter.use(studentsRouter);
 apiRouter.use(analyticsRouter);
 apiRouter.use(leaderboardRouter);
+apiRouter.use(materialsRouter);

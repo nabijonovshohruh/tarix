@@ -1,5 +1,10 @@
 export type Period = "QADIMGI_DUNYO" | "ORTA_ASRLAR" | "YANGI_DAVR" | "ENG_YANGI_DAVR";
 export type SubCategory = "UZBEKISTON" | "JAHON";
+export type MaterialSection = "DARSLIKLAR" | "MUHIM_QOLLANMALAR" | "UMUMIY_SERTIFIKAT" | "MAVZULASHGAN_SERTIFIKAT";
+// Pure UI grouping — each MaterialSection value belongs to exactly one of
+// these two top-level categories (see backend/prisma/schema.prisma's comment
+// on the MaterialSection enum).
+export type MaterialCategory = "GUIDES" | "CERTIFICATES";
 export type CorrectOption = "A" | "B" | "C" | "D";
 export type SessionStatus = "ACTIVE" | "CLOSED";
 export type ExamStatus = "PASSED" | "FAILED";
@@ -170,6 +175,23 @@ export interface LeaderboardEntry {
   combinedScore: number;
   averagePercentage: number;
   attendancePercentage: number;
+}
+
+// List items never include description/fileId — see materials.controller.ts's
+// listMaterials for why. MaterialDetail below is the full shape used once a
+// single material is fetched.
+export interface Material {
+  id: string;
+  title: string;
+  section: MaterialSection;
+  isPremium: boolean;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MaterialDetail extends Material {
+  description: string;
 }
 
 export interface BulkUploadResult {

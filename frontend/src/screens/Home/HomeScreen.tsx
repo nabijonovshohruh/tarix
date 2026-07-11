@@ -9,6 +9,8 @@ const tiles = [
   { to: "/attendance", icon: "🗓️", title: uz.home.attendance, desc: uz.home.attendanceDesc },
   { to: "/exams", icon: "📝", title: uz.home.exams, desc: uz.home.examsDesc },
   { to: "/leaderboard", icon: "🏆", title: uz.home.leaderboard, desc: uz.home.leaderboardDesc },
+  { to: "/materials/guides", icon: "📖", title: uz.home.guides, desc: uz.home.guidesDesc },
+  { to: "/materials/certificates", icon: "🎓", title: uz.home.certificates, desc: uz.home.certificatesDesc },
 ];
 
 export function HomeScreen() {

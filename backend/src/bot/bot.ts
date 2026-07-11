@@ -9,7 +9,7 @@ const CHECK_SUBSCRIPTION_ACTION = "check_subscription";
 const NOT_SUBSCRIBED_TOAST = "Siz hali kanalga a'zo bo'lmagansiz. Qo'shiling va qayta tekshiring.";
 
 const NAME_PROMPT =
-  "Xush kelibsiz! \"Majburiy Tarix\" botidan foydalanish uchun avval ism va " +
+  "Xush kelibsiz! \"Tarix | Nabijonov Shohruh\" botidan foydalanish uchun avval ism va " +
   "familiyangizni to'liq holda yozib yuboring (masalan: Aliyev Vali).";
 
 function subscribeKeyboard() {
@@ -39,7 +39,7 @@ async function sendWelcome(ctx: Context) {
   const keyboard = new InlineKeyboard().webApp("📚 Ilovani ochish", env.WEBAPP_URL);
 
   await ctx.reply(
-    "Assalomu alaykum! \"Majburiy Tarix\" kursiga xush kelibsiz.\n\n" +
+    "Assalomu alaykum! \"Tarix | Nabijonov Shohruh\" kursiga xush kelibsiz.\n\n" +
       "Quyidagi tugma orqali testlar, davomat va imtihon bo'limlariga o'ting.",
     { reply_markup: keyboard }
   );

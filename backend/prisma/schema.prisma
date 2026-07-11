@@ -247,3 +247,40 @@ model ExamAnswer {
 
   @@index([resultId])
 }
+
+// Each value fully determines its top-level section too (no separate
+// "category" column needed): DARSLIKLAR/MUHIM_QOLLANMALAR belong to
+// "Qo'llanmalar", UMUMIY_SERTIFIKAT/MAVZULASHGAN_SERTIFIKAT to "Milliy
+// Sertifikat Testlari" — the category grouping is a pure UI concern (see
+// frontend/src/api/types.ts).
+enum MaterialSection {
+  DARSLIKLAR
+  MUHIM_QOLLANMALAR
+  UMUMIY_SERTIFIKAT
+  MAVZULASHGAN_SERTIFIKAT
+}
+
+// Files are never stored on our server — fileId is a Telegram file_id,
+// obtained by relaying the admin's upload through the bot (sendDocument to
+// the uploading admin's own chat) and capturing the response. The same
+// file_id is reusable by our bot to (re)send the file to any chat
+// indefinitely, so "download" for a student means the bot delivering the
+// document into their Telegram DM, not a browser download link — see
+// materials.controller.ts's downloadMaterial.
+model Material {
+  id          BigInt          @id @default(autoincrement())
+  title       String
+  description String
+  section     MaterialSection
+  fileId      String
+  fileName    String
+  // "Bepul" when false — guests may download it too, same isFree/guest
+  // paywall pattern as Test.isFree. "Pullik" when true — requires role
+  // student/admin.
+  isPremium   Boolean         @default(false)
+  isPublished Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([section])
+}

@@ -1,4 +1,4 @@
-# Majburiy Tarix — Telegram Mini App
+# Tarix | Nabijonov Shohruh — Telegram Mini App
 
 Telegram bot + Mini App for an online History course: topic tests (Mavzulashtirilgan Testlar), attendance (Davomat), and weekly exams (Imtihon), with a role-gated admin panel built into the same Mini App.
 
