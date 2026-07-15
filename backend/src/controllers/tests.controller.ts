@@ -1,34 +1,22 @@
 import { Request, Response } from "express";
 import { z } from "zod";
-import { CorrectOption, Period, SubCategory } from "@prisma/client";
+import { CorrectOption, Period } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { HttpError } from "../middleware/errorHandler";
 import { buildAnswerSnapshots, gradeSubmission } from "../services/scoring.service";
 import { parseQuestionsWorkbook } from "../services/bulkUpload.service";
 
-// QADIMGI_DUNYO keeps its flat topic list (no sub-category step); every
-// other period requires the student to pick O'zbekiston/Jahon tarixi first,
-// so a topic assigned to one of those periods must declare which one it
-// belongs to.
-const testInputSchema = z
-  .object({
-    title: z.string().min(1),
-    period: z.nativeEnum(Period),
-    subCategory: z.nativeEnum(SubCategory).nullable().optional(),
-  })
-  .transform((data) => ({
-    ...data,
-    subCategory: data.period === "QADIMGI_DUNYO" ? null : data.subCategory ?? null,
-  }))
-  .refine((data) => data.period === "QADIMGI_DUNYO" || data.subCategory !== null, {
-    message: "subCategory is required for this period",
-    path: ["subCategory"],
-  });
+// Every Period value is now a self-contained grade/subject unit (e.g.
+// GRADE_7_JAHON), so subCategory is no longer accepted/required here — it
+// remains an unused nullable column for historical rows only.
+const testInputSchema = z.object({
+  title: z.string().min(1),
+  period: z.nativeEnum(Period),
+});
 
 const testUpdateSchema = z.object({
   title: z.string().min(1).optional(),
   period: z.nativeEnum(Period).optional(),
-  subCategory: z.nativeEnum(SubCategory).nullable().optional(),
   isPublished: z.boolean().optional(),
   isFree: z.boolean().optional(),
 });
@@ -77,12 +65,10 @@ export async function listTests(req: Request, res: Response) {
   const isAdmin = req.user!.role === "admin";
   const includeAll = isAdmin && req.query.all === "true";
   const period = req.query.period as Period | undefined;
-  const subCategory = req.query.subCategory as SubCategory | undefined;
 
   const tests = await prisma.test.findMany({
     where: {
       ...(period ? { period } : {}),
-      ...(subCategory ? { subCategory } : {}),
       ...(includeAll ? {} : { isPublished: true }),
     },
     // Oldest first — topics are uploaded in sequence (1-mavzu, 2-mavzu, ...)

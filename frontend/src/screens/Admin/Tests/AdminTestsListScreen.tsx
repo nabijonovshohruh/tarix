@@ -8,16 +8,26 @@ import { EmptyState } from "../../../components/common/EmptyState";
 import { uz } from "../../../i18n/uz";
 import { createTest, deleteTest, listTests, updateTest } from "../../../api/tests";
 import { ApiError } from "../../../api/client";
-import { Period, SubCategory, Test } from "../../../api/types";
+import { Period, Test } from "../../../api/types";
 
-const periods: Period[] = ["QADIMGI_DUNYO", "ORTA_ASRLAR", "YANGI_DAVR", "ENG_YANGI_DAVR"];
-const subCategories: SubCategory[] = ["UZBEKISTON", "JAHON"];
+const periods: Period[] = [
+  "GRADE_6",
+  "GRADE_7_JAHON",
+  "GRADE_7_UZBEKISTON",
+  "GRADE_8_JAHON",
+  "GRADE_8_UZBEKISTON",
+  "GRADE_9_JAHON",
+  "GRADE_9_UZBEKISTON",
+  "GRADE_10_JAHON",
+  "GRADE_10_UZBEKISTON",
+  "GRADE_11_JAHON",
+  "GRADE_11_UZBEKISTON",
+];
 
 export function AdminTestsListScreen() {
   const [tests, setTests] = useState<Test[] | null>(null);
   const [title, setTitle] = useState("");
-  const [period, setPeriod] = useState<Period>("QADIMGI_DUNYO");
-  const [subCategory, setSubCategory] = useState<SubCategory | "">("");
+  const [period, setPeriod] = useState<Period>("GRADE_6");
   const [creating, setCreating] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -27,15 +37,12 @@ export function AdminTestsListScreen() {
     load();
   }, []);
 
-  const needsSubCategory = period !== "QADIMGI_DUNYO";
-
   const handleCreate = async () => {
-    if (!title.trim() || (needsSubCategory && !subCategory)) return;
+    if (!title.trim()) return;
     setCreating(true);
     try {
-      await createTest({ title: title.trim(), period, subCategory: subCategory || null });
+      await createTest({ title: title.trim(), period });
       setTitle("");
-      setSubCategory("");
       load();
     } finally {
       setCreating(false);
@@ -77,11 +84,7 @@ export function AdminTestsListScreen() {
           />
           <select
             value={period}
-            onChange={(e) => {
-              const next = e.target.value as Period;
-              setPeriod(next);
-              if (next === "QADIMGI_DUNYO") setSubCategory("");
-            }}
+            onChange={(e) => setPeriod(e.target.value as Period)}
             className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 text-sm dark:border-slate-700"
           >
             {periods.map((p) => (
@@ -90,25 +93,7 @@ export function AdminTestsListScreen() {
               </option>
             ))}
           </select>
-          {needsSubCategory && (
-            <select
-              value={subCategory}
-              onChange={(e) => setSubCategory(e.target.value as SubCategory)}
-              className="w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 text-sm dark:border-slate-700"
-            >
-              <option value="">{uz.tests.selectSubCategory}</option>
-              {subCategories.map((sc) => (
-                <option key={sc} value={sc}>
-                  {uz.subCategories[sc]}
-                </option>
-              ))}
-            </select>
-          )}
-          <Button
-            onClick={handleCreate}
-            disabled={creating || !title.trim() || (needsSubCategory && !subCategory)}
-            className="w-full"
-          >
+          <Button onClick={handleCreate} disabled={creating || !title.trim()} className="w-full">
             {uz.common.create}
           </Button>
         </Card>
@@ -121,10 +106,7 @@ export function AdminTestsListScreen() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-semibold">{test.title}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {uz.periods[test.period]}
-                    {test.subCategory && ` · ${uz.subCategories[test.subCategory]}`}
-                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{uz.periods[test.period]}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <Badge tone={test.isPublished ? "success" : "neutral"}>

@@ -26,7 +26,11 @@ function useCountdown(endTime?: string) {
 }
 
 export function AttendanceScreen() {
-  const { isGuest } = useAuth();
+  const { isGuest, user } = useAuth();
+  // "Konkurs" students have no attendance obligation — locked out of this
+  // screen entirely rather than just the mark button, per the teacher's
+  // request. Server-side enforcement lives in attendance.service.ts too.
+  const restricted = user?.groupName === "Konkurs";
   const [session, setSession] = useState<AttendanceSession | null | undefined>(undefined);
   const [records, setRecords] = useState<AttendanceRecord[] | null>(null);
   const [marking, setMarking] = useState(false);
@@ -41,11 +45,25 @@ export function AttendanceScreen() {
   };
 
   useEffect(() => {
+    if (restricted) return;
     load();
     const id = setInterval(() => getActiveSession().then(({ session }) => setSession(session)), 5000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [restricted]);
+
+  if (restricted) {
+    return (
+      <div>
+        <Header title={uz.nav.attendance} />
+        <div className="p-4">
+          <Card>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{uz.attendance.restricted}</p>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   const alreadyMarked = session && records?.some((r) => r.sessionId === session.id);
 

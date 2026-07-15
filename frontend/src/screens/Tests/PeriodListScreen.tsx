@@ -4,7 +4,19 @@ import { Card } from "../../components/common/Card";
 import { uz } from "../../i18n/uz";
 import { Period } from "../../api/types";
 
-const periods: Period[] = ["QADIMGI_DUNYO", "ORTA_ASRLAR", "YANGI_DAVR", "ENG_YANGI_DAVR"];
+const periods: Period[] = [
+  "GRADE_6",
+  "GRADE_7_JAHON",
+  "GRADE_7_UZBEKISTON",
+  "GRADE_8_JAHON",
+  "GRADE_8_UZBEKISTON",
+  "GRADE_9_JAHON",
+  "GRADE_9_UZBEKISTON",
+  "GRADE_10_JAHON",
+  "GRADE_10_UZBEKISTON",
+  "GRADE_11_JAHON",
+  "GRADE_11_UZBEKISTON",
+];
 
 export function PeriodListScreen() {
   return (

@@ -7,48 +7,23 @@ import { EmptyState } from "../../components/common/EmptyState";
 import { uz } from "../../i18n/uz";
 import { useAuth } from "../../context/AuthContext";
 import { listTests } from "../../api/tests";
-import { Period, SubCategory, Test } from "../../api/types";
-
-const subCategories: SubCategory[] = ["UZBEKISTON", "JAHON"];
+import { Period, Test } from "../../api/types";
 
 export function TestListScreen() {
-  const { period, subCategory } = useParams<{ period: Period; subCategory?: SubCategory }>();
+  const { period } = useParams<{ period: Period }>();
   const { isGuest } = useAuth();
   const [tests, setTests] = useState<Test[] | null>(null);
 
-  // Every period except QADIMGI_DUNYO requires picking a sub-category first;
-  // QADIMGI_DUNYO keeps its original flat topic list.
-  const needsSubCategoryChoice = period !== "QADIMGI_DUNYO" && !subCategory;
-
   useEffect(() => {
-    if (!period || needsSubCategoryChoice) return;
-    listTests({ period, subCategory }).then(({ tests }) => setTests(tests));
-  }, [period, subCategory, needsSubCategoryChoice]);
-
-  if (needsSubCategoryChoice) {
-    return (
-      <div>
-        <Header title={period ? uz.periods[period] : uz.nav.tests} showBack />
-        <div className="space-y-3 p-4">
-          <p className="text-sm text-slate-500 dark:text-slate-400">{uz.tests.selectSubCategory}</p>
-          {subCategories.map((sc) => (
-            <Link key={sc} to={`/tests/${period}/${sc}`}>
-              <Card className="transition hover:border-brand-300 active:scale-[0.99]">
-                <p className="font-semibold">{uz.subCategories[sc]}</p>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      </div>
-    );
-  }
+    if (!period) return;
+    listTests({ period }).then(({ tests }) => setTests(tests));
+  }, [period]);
 
   const title = period ? uz.periods[period] : uz.nav.tests;
-  const subtitle = subCategory ? uz.subCategories[subCategory] : undefined;
 
   return (
     <div>
-      <Header title={title} subtitle={subtitle} showBack />
+      <Header title={title} showBack />
       <div className="space-y-3 p-4">
         {tests === null && <Spinner />}
         {tests?.length === 0 && <EmptyState message={uz.tests.noTests} />}

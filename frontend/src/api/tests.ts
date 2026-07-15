@@ -1,10 +1,9 @@
 import { get, post, postForm, put, del } from "./client";
-import { BulkUploadResult, CorrectOption, GradeResult, Period, Question, SubCategory, Test, TestResult } from "./types";
+import { BulkUploadResult, CorrectOption, GradeResult, Period, Question, Test, TestResult } from "./types";
 
-export const listTests = (params?: { period?: Period; subCategory?: SubCategory; all?: boolean }) => {
+export const listTests = (params?: { period?: Period; all?: boolean }) => {
   const query = new URLSearchParams();
   if (params?.period) query.set("period", params.period);
-  if (params?.subCategory) query.set("subCategory", params.subCategory);
   if (params?.all) query.set("all", "true");
   const qs = query.toString();
   return get<{ tests: Test[] }>(`/tests${qs ? `?${qs}` : ""}`);
@@ -12,7 +11,7 @@ export const listTests = (params?: { period?: Period; subCategory?: SubCategory;
 
 export const getTest = (id: string) => get<{ test: Test }>(`/tests/${id}`);
 
-export const createTest = (data: { title: string; period: Period; subCategory?: SubCategory | null }) =>
+export const createTest = (data: { title: string; period: Period }) =>
   post<{ test: Test }>("/tests", data);
 
 export const updateTest = (
@@ -20,7 +19,6 @@ export const updateTest = (
   data: Partial<{
     title: string;
     period: Period;
-    subCategory: SubCategory | null;
     isPublished: boolean;
     isFree: boolean;
   }>

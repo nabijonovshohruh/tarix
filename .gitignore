@@ -8,3 +8,4 @@ npm-debug.log*
 
 backend/generated/
 frontend/dist/
+*.tsbuildinfo

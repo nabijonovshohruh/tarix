@@ -31,6 +31,13 @@ export async function getActiveSession() {
  * guard that closes the race window before the background poller ticks.
  */
 export async function markAttendance(sessionId: bigint, studentId: bigint) {
+  // "Konkurs" is a competition-only group with no attendance obligation —
+  // restricted from marking attendance entirely, per the teacher's request.
+  const student = await prisma.student.findUnique({ where: { id: studentId } });
+  if (student?.groupName === "Konkurs") {
+    throw new HttpError(403, "Kechirasiz, sizning guruhingiz uchun davomat bo'limi mavjud emas.");
+  }
+
   const session = await prisma.attendanceSession.findUnique({ where: { id: sessionId } });
   if (!session) throw new HttpError(404, "session not found");
 

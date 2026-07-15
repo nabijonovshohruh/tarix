@@ -7,11 +7,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// GRADE_6 was formerly QADIMGI_DUNYO (renamed in-place via a migration that
+// preserves all existing Test rows — see migrations/20260715_period_grades).
+// ORTA_ASRLAR/YANGI_DAVR/ENG_YANGI_DAVR are legacy values no longer used by
+// the app (verified zero Test rows referenced them at migration time);
+// Postgres can't drop enum values without a full type rebuild, so they're
+// left in place inert rather than referenced anywhere in app code.
 enum Period {
-  QADIMGI_DUNYO
+  GRADE_6
   ORTA_ASRLAR
   YANGI_DAVR
   ENG_YANGI_DAVR
+  GRADE_7_JAHON
+  GRADE_7_UZBEKISTON
+  GRADE_8_JAHON
+  GRADE_8_UZBEKISTON
+  GRADE_9_JAHON
+  GRADE_9_UZBEKISTON
+  GRADE_10_JAHON
+  GRADE_10_UZBEKISTON
+  GRADE_11_JAHON
+  GRADE_11_UZBEKISTON
 }
 
 enum CorrectOption {
@@ -37,13 +53,10 @@ enum Role {
   ADMIN
 }
 
-// Only meaningful for periods other than QADIMGI_DUNYO, which keeps its flat
-// (no sub-category) topic list unchanged. For ORTA_ASRLAR/YANGI_DAVR/
-// ENG_YANGI_DAVR, the student first picks O'zbekiston tarixi or Jahon
-// tarixi before seeing that period's topics — enforced at the app layer in
-// tests.controller.ts (required when creating/updating a test whose period
-// isn't QADIMGI_DUNYO), not a DB constraint, since Prisma has no native
-// conditional-required-field support.
+// Legacy field, no longer required/used by the app now that every Period
+// value already encodes its own grade+subject split (see Period enum above).
+// Left in place unused rather than dropped — every existing Test row already
+// has subCategory = null, so keeping the column is zero-risk.
 enum SubCategory {
   UZBEKISTON
   JAHON
@@ -64,6 +77,9 @@ model Student {
   // registered (real name on file) while still awaiting an admin's promotion
   // to STUDENT.
   isRegistered      Boolean  @default(false)
+  // True while the bot is waiting for the student's reply to /editname —
+  // same one-field-as-conversation-state pattern as isRegistered above.
+  awaitingNameEdit  Boolean  @default(false)
   username          String?
   role              Role     @default(GUEST)
   groupName         String?

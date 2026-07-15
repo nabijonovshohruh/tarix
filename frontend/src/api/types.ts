@@ -1,4 +1,20 @@
-export type Period = "QADIMGI_DUNYO" | "ORTA_ASRLAR" | "YANGI_DAVR" | "ENG_YANGI_DAVR";
+// Each value is a self-contained grade/subject unit — replaces the old
+// 4-era model (QADIMGI_DUNYO/ORTA_ASRLAR/YANGI_DAVR/ENG_YANGI_DAVR).
+// QADIMGI_DUNYO was renamed to GRADE_6 in place (see backend migration
+// 20260715130000_period_grades_and_editname), preserving all existing tests.
+export type Period =
+  | "GRADE_6"
+  | "GRADE_7_JAHON"
+  | "GRADE_7_UZBEKISTON"
+  | "GRADE_8_JAHON"
+  | "GRADE_8_UZBEKISTON"
+  | "GRADE_9_JAHON"
+  | "GRADE_9_UZBEKISTON"
+  | "GRADE_10_JAHON"
+  | "GRADE_10_UZBEKISTON"
+  | "GRADE_11_JAHON"
+  | "GRADE_11_UZBEKISTON";
+// Legacy field, no longer set/used by the app (see Period above).
 export type SubCategory = "UZBEKISTON" | "JAHON";
 export type MaterialSection = "DARSLIKLAR" | "MUHIM_QOLLANMALAR" | "UMUMIY_SERTIFIKAT" | "MAVZULASHGAN_SERTIFIKAT";
 // Only meaningful when section is MAVZULASHGAN_SERTIFIKAT — same

@@ -12,6 +12,11 @@ const NAME_PROMPT =
   "Xush kelibsiz! \"Tarix | Nabijonov Shohruh\" botidan foydalanish uchun avval ism va " +
   "familiyangizni to'liq holda yozib yuboring (masalan: Aliyev Vali).";
 
+const EDIT_NAME_PROMPT =
+  "Yangi ism va familiyangizni to'liq holda yozib yuboring (masalan: Aliyev Vali).";
+const NAME_LENGTH_ERROR =
+  "Ism-familiya juda qisqa yoki uzun. Iltimos, to'liq ism va familiyangizni qayta kiriting.";
+
 function subscribeKeyboard() {
   const keyboard = new InlineKeyboard();
   const channelUrl = getChannelUrl();
@@ -134,9 +139,7 @@ bot.use(async (ctx, next) => {
 
     if (text && !isCommand) {
       if (text.length < 2 || text.length > 100) {
-        await ctx.reply(
-          "Ism-familiya juda qisqa yoki uzun. Iltimos, to'liq ism va familiyangizni qayta kiriting."
-        );
+        await ctx.reply(NAME_LENGTH_ERROR);
         return;
       }
 
@@ -156,13 +159,58 @@ bot.use(async (ctx, next) => {
   return next();
 });
 
+// /editname conversation gate — runs after registration, so it only ever
+// sees already-registered users. Mirrors the registration gate's pattern:
+// a boolean column (awaitingNameEdit) tracks whether we're mid-conversation,
+// so it survives process restarts. If the user sends a command instead of a
+// name while the flow is active, the flow is silently cancelled and the
+// command proceeds normally rather than swallowing it forever.
+bot.use(async (ctx, next) => {
+  const from = ctx.from;
+  if (!from || !ctx.message) return next();
+
+  const telegramId = BigInt(from.id);
+  const student = await prisma.student.findUnique({ where: { telegramId } });
+  if (!student?.awaitingNameEdit) return next();
+
+  const text = ctx.message.text?.trim();
+  const isCommand = text?.startsWith("/") ?? false;
+
+  if (!text || isCommand) {
+    await prisma.student.update({ where: { telegramId }, data: { awaitingNameEdit: false } });
+    return next();
+  }
+
+  if (text.length < 2 || text.length > 100) {
+    await ctx.reply(NAME_LENGTH_ERROR);
+    return;
+  }
+
+  await prisma.student.update({
+    where: { telegramId },
+    data: { fullName: text, awaitingNameEdit: false },
+  });
+  await ctx.reply(`Ism-familiyangiz muvaffaqiyatli o'zgartirildi: ${text}`);
+});
+
 bot.command("start", async (ctx) => {
   await sendWelcome(ctx);
+});
+
+bot.command("editname", async (ctx) => {
+  if (!ctx.from) return;
+  const telegramId = BigInt(ctx.from.id);
+  await prisma.student.update({
+    where: { telegramId },
+    data: { awaitingNameEdit: true },
+  });
+  await ctx.reply(EDIT_NAME_PROMPT);
 });
 
 bot.command("help", async (ctx) => {
   await ctx.reply(
     "/start — Mini App'ni ochish\n" +
+      "/editname — Ism-familiyangizni o'zgartirish\n" +
       "Savollar bo'yicha o'qituvchingizga murojaat qiling."
   );
 });

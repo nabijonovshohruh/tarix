@@ -36,7 +36,6 @@ export const router = createBrowserRouter([
 
       { path: "/tests", element: <PeriodListScreen /> },
       { path: "/tests/:period", element: <TestListScreen /> },
-      { path: "/tests/:period/:subCategory", element: <TestListScreen /> },
       { path: "/tests/:testId/take", element: <TestTakingScreen /> },
       { path: "/tests/:testId/result/:resultId", element: <TestResultScreen /> },
       { path: "/tests/:testId/result/:resultId/review", element: <ReviewScreen kind="test" /> },
