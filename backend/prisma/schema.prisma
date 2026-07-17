@@ -80,6 +80,9 @@ model Student {
   // True while the bot is waiting for the student's reply to /editname —
   // same one-field-as-conversation-state pattern as isRegistered above.
   awaitingNameEdit  Boolean  @default(false)
+  // True while the bot is waiting for an admin's /sendall broadcast content.
+  // Only ever set on rows env.adminTelegramIds recognizes as an admin.
+  awaitingBroadcast Boolean  @default(false)
   username          String?
   role              Role     @default(GUEST)
   groupName         String?

@@ -2,6 +2,7 @@ import { Bot, Context, GrammyError, HttpError, InlineKeyboard } from "grammy";
 import { env } from "../config/env";
 import { prisma } from "../db/prisma";
 import { getChannelUrl, invalidateChannelSubscription, isChannelSubscriber } from "../services/channelSubscription.service";
+import { broadcastMessage } from "../services/broadcast.service";
 
 export const bot = new Bot(env.BOT_TOKEN);
 
@@ -16,6 +17,15 @@ const EDIT_NAME_PROMPT =
   "Yangi ism va familiyangizni to'liq holda yozib yuboring (masalan: Aliyev Vali).";
 const NAME_LENGTH_ERROR =
   "Ism-familiya juda qisqa yoki uzun. Iltimos, to'liq ism va familiyangizni qayta kiriting.";
+
+const BROADCAST_PROMPT =
+  "Barcha foydalanuvchilarga yubormoqchi bo'lgan xabaringizni yuboring " +
+  "(matn, rasm, video yoki fayl bo'lishi mumkin).";
+const BROADCAST_SENDING = "Yuborilmoqda, biroz kuting...";
+
+function isAdmin(telegramId: number) {
+  return env.adminTelegramIds.has(telegramId.toString());
+}
 
 function subscribeKeyboard() {
   const keyboard = new InlineKeyboard();
@@ -193,6 +203,40 @@ bot.use(async (ctx, next) => {
   await ctx.reply(`Ism-familiyangiz muvaffaqiyatli o'zgartirildi: ${text}`);
 });
 
+// /sendall conversation gate — admin-only (env.adminTelegramIds), same
+// one-boolean-per-flow pattern as the editname gate above. Captures the
+// admin's next message verbatim (any kind: text, formatted text, photo/
+// video/document with caption) as the broadcast source and fans it out via
+// broadcastMessage, which uses copyMessage so no content branching is
+// needed here.
+bot.use(async (ctx, next) => {
+  const from = ctx.from;
+  if (!from || !ctx.message) return next();
+  if (!isAdmin(from.id)) return next();
+
+  const telegramId = BigInt(from.id);
+  const student = await prisma.student.findUnique({ where: { telegramId } });
+  if (!student?.awaitingBroadcast) return next();
+
+  const text = ctx.message.text?.trim();
+  const isCommand = text?.startsWith("/") ?? false;
+
+  if (isCommand) {
+    await prisma.student.update({ where: { telegramId }, data: { awaitingBroadcast: false } });
+    return next();
+  }
+
+  await prisma.student.update({ where: { telegramId }, data: { awaitingBroadcast: false } });
+  await ctx.reply(BROADCAST_SENDING);
+
+  const { sent, failed } = await broadcastMessage(bot.api, ctx.chat!.id, ctx.message.message_id, telegramId);
+
+  await ctx.reply(
+    `Xabar jami ${sent} ta foydalanuvchiga muvaffaqiyatli yuborildi.` +
+      (failed > 0 ? `\n${failed} ta foydalanuvchiga yuborib bo'lmadi.` : "")
+  );
+});
+
 bot.command("start", async (ctx) => {
   await sendWelcome(ctx);
 });
@@ -205,6 +249,16 @@ bot.command("editname", async (ctx) => {
     data: { awaitingNameEdit: true },
   });
   await ctx.reply(EDIT_NAME_PROMPT);
+});
+
+bot.command("sendall", async (ctx) => {
+  if (!ctx.from || !isAdmin(ctx.from.id)) return;
+  const telegramId = BigInt(ctx.from.id);
+  await prisma.student.update({
+    where: { telegramId },
+    data: { awaitingBroadcast: true },
+  });
+  await ctx.reply(BROADCAST_PROMPT);
 });
 
 bot.command("help", async (ctx) => {
