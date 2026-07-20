@@ -229,12 +229,29 @@ bot.use(async (ctx, next) => {
   await prisma.student.update({ where: { telegramId }, data: { awaitingBroadcast: false } });
   await ctx.reply(BROADCAST_SENDING);
 
-  const { sent, failed } = await broadcastMessage(bot.api, ctx.chat!.id, ctx.message.message_id, telegramId);
+  const fromChatId = ctx.chat!.id;
+  const messageId = ctx.message.message_id;
 
-  await ctx.reply(
-    `Xabar jami ${sent} ta foydalanuvchiga muvaffaqiyatli yuborildi.` +
-      (failed > 0 ? `\n${failed} ta foydalanuvchiga yuborib bo'lmadi.` : "")
-  );
+  // Deliberately not awaited: in production this middleware runs inside
+  // grammy's webhookCallback, which rejects with "Request timed out after
+  // 10000 ms" if bot.handleUpdate() (this whole middleware chain) doesn't
+  // finish within ~10s (see bot/webhook.ts). Broadcasting to hundreds of
+  // users — each with its own per-message delay (see broadcast.service.ts)
+  // — easily takes far longer than that, so awaiting it here would block
+  // the webhook's response past the timeout on every single run. Instead,
+  // acknowledge the webhook now and keep broadcasting after this middleware
+  // returns; the final summary is sent as a separate message once done.
+  broadcastMessage(bot.api, fromChatId, messageId, telegramId)
+    .then(({ sent, failed }) =>
+      bot.api.sendMessage(
+        fromChatId,
+        `Xabar jami ${sent} ta foydalanuvchiga muvaffaqiyatli yuborildi.` +
+          (failed > 0 ? `\n${failed} ta foydalanuvchiga yuborib bo'lmadi.` : "")
+      )
+    )
+    .catch((err) => {
+      console.error("Broadcast run failed unexpectedly:", err);
+    });
 });
 
 bot.command("start", async (ctx) => {

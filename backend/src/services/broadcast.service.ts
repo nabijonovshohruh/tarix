@@ -1,4 +1,4 @@
-import type { Api } from "grammy";
+import { GrammyError, HttpError, type Api } from "grammy";
 import { prisma } from "../db/prisma";
 
 // Telegram allows roughly 30 messages/second bot-wide across different
@@ -43,8 +43,21 @@ export async function broadcastMessage(
       await api.copyMessage(telegramId.toString(), fromChatId, messageId);
       sent++;
     } catch (err) {
-      console.error(`Broadcast failed for telegramId ${telegramId}:`, err);
+      // Never let a single recipient's failure escape this loop — a wave of
+      // 403s (blocked the bot) or 400s (chat not found, deleted account) is
+      // routine for a broadcast this size, not a bug, so each is logged and
+      // skipped rather than allowed to throw and abort the rest of the run.
       failed++;
+      if (err instanceof GrammyError) {
+        console.error(
+          `Broadcast: GrammyError for telegramId ${telegramId} (${err.error_code}):`,
+          err.description
+        );
+      } else if (err instanceof HttpError) {
+        console.error(`Broadcast: network error for telegramId ${telegramId}:`, err.message);
+      } else {
+        console.error(`Broadcast: unknown error for telegramId ${telegramId}:`, err);
+      }
     }
     await sleep(DELAY_MS);
   }
