@@ -95,6 +95,10 @@ export const uz = {
     absent: "Kelmaganlar",
     myAttendance: "Mening davomatim",
     restricted: "Kechirasiz, sizning guruhingiz uchun davomat bo'limi mavjud emas.",
+    selectGroupLabel: "Guruhni tanlash",
+    selectGroupHint: "Davomatni boshlashdan oldin guruhni tanlang",
+    noGroupsHint: "Hozircha guruhlar mavjud emas — avval talabalarga guruh belgilang",
+    group: "Guruh",
   },
   exams: {
     examList: "Imtihonlar ro'yxati",

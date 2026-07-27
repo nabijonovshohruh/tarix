@@ -1,7 +1,7 @@
 import { get, post } from "./client";
 import { AttendanceRecord, AttendanceSession, SessionRoster } from "./types";
 
-export const startSession = (data: { title: string; durationMinutes: number }) =>
+export const startSession = (data: { title: string; durationMinutes: number; groupName: string }) =>
   post<{ session: AttendanceSession }>("/attendance/sessions", data);
 
 export const stopSession = (id: string) =>

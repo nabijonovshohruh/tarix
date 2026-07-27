@@ -149,6 +149,7 @@ export interface ExamResult {
 export interface AttendanceSession {
   id: string;
   title: string;
+  groupName: string | null;
   startTime: string;
   endTime: string;
   status: SessionStatus;

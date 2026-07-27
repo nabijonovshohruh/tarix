@@ -21,7 +21,11 @@ export function AdminSessionDetailScreen() {
 
   return (
     <div>
-      <Header title={roster.session.title} showBack />
+      <Header
+        title={roster.session.title}
+        subtitle={roster.session.groupName ? `${uz.attendance.group}: ${roster.session.groupName}` : undefined}
+        showBack
+      />
       <div className="space-y-4 p-4">
         <Card className="text-center">
           <p className="text-3xl font-bold text-brand-600 dark:text-brand-400">{roster.percentage}%</p>

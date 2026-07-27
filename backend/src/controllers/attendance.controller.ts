@@ -12,11 +12,12 @@ import {
 const startSchema = z.object({
   title: z.string().min(1),
   durationMinutes: z.number().int().positive().max(600),
+  groupName: z.string().trim().min(1),
 });
 
 export async function postStartSession(req: Request, res: Response) {
   const body = startSchema.parse(req.body);
-  const session = await startSession(body.title, body.durationMinutes);
+  const session = await startSession(body.title, body.durationMinutes, body.groupName);
   res.status(201).json({ session });
 }
 
@@ -27,7 +28,8 @@ export async function postStopSession(req: Request, res: Response) {
 }
 
 export async function getActive(req: Request, res: Response) {
-  const session = await getActiveSession();
+  const isAdmin = req.user!.role === "admin";
+  const session = await getActiveSession(isAdmin ? undefined : req.user!.groupName ?? null);
   res.json({ session });
 }
 

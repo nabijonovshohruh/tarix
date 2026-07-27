@@ -175,6 +175,12 @@ model AttendanceSession {
   endTime   DateTime
   status    SessionStatus @default(ACTIVE)
   createdAt DateTime      @default(now())
+  // Which Student.groupName this session is for. Required going forward
+  // (enforced in attendance.controller.ts, not here — Prisma has no native
+  // conditional-required support, same pattern as Test.subCategory); nullable
+  // only so pre-existing sessions created before this feature stay valid
+  // ("ungated" — visible/markable regardless of group, see attendance.service.ts).
+  groupName String?
 
   records AttendanceRecord[]
 }
