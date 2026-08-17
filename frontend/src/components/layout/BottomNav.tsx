@@ -26,10 +26,10 @@ export function BottomNav() {
             to={item.to}
             end={"end" in item ? item.end : false}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 text-xs font-medium ${
+              `flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                 isActive
-                  ? "text-brand-600 dark:text-brand-400"
-                  : "text-slate-500 dark:text-slate-400"
+                  ? "bg-brand-50 text-brand-600 dark:bg-brand-900/40 dark:text-brand-400"
+                  : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
               }`
             }
           >

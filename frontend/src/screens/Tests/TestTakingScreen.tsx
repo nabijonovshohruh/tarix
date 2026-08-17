@@ -25,11 +25,11 @@ function optionClasses(key: CorrectOption, selected: CorrectOption | undefined, 
     if (key === selected && !feedback.isCorrect) {
       return "border-red-500 bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-300";
     }
-    return "border-slate-200 opacity-60 dark:border-slate-800";
+    return "border-slate-200 opacity-60 dark:border-slate-800 text-slate-900 dark:text-slate-100";
   }
   return selected === key
-    ? "border-brand-500 bg-brand-50 dark:bg-brand-900/30"
-    : "border-slate-200 dark:border-slate-800";
+    ? "border-brand-500 bg-brand-50 dark:bg-brand-900/30 text-slate-900 dark:text-slate-100"
+    : "border-slate-200 text-slate-900 hover:border-brand-300 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-100 dark:hover:border-brand-700 dark:hover:bg-slate-800/60";
 }
 
 export function TestTakingScreen() {
@@ -121,7 +121,7 @@ export function TestTakingScreen() {
                 : ""
             }
           >
-            <p className="mb-4 font-medium">{question.questionText}</p>
+            <p className="mb-4 font-medium text-slate-900 dark:text-slate-100">{question.questionText}</p>
             <div className="space-y-2">
               {optionKeys.map((key) => (
                 <button

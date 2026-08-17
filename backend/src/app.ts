@@ -47,8 +47,26 @@ app.use("/api", apiRouter);
 // (see Dockerfile), so there's no separate static host and no CORS to configure.
 if (env.isProduction) {
   const publicDir = path.join(__dirname, "../public");
-  app.use(express.static(publicDir));
+  // Vite content-hashes every filename under /assets, so those can be cached
+  // forever — but index.html must never be cached, or a device that already
+  // has an old copy keeps referencing hashed JS/CSS files a later deploy has
+  // since deleted, silently breaking the whole page (missing styles, blank
+  // screens) until the cache expires on its own. Without this, both got the
+  // same default (weak, revalidate-based) caching, which is exactly the gap
+  // that lets a stale shell survive a redeploy on some clients.
+  app.use(
+    express.static(publicDir, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith(`${path.sep}index.html`)) {
+          res.setHeader("Cache-Control", "no-cache");
+        } else {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      },
+    })
+  );
   app.get("*", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.join(publicDir, "index.html"));
   });
 }
