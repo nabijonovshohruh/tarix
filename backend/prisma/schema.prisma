@@ -88,9 +88,24 @@ model Student {
   groupName         String?
   createdAt         DateTime @default(now())
 
+  // Who invited this student via a /start ref_<telegramId> deep link — set
+  // once, at row-creation time, never updated afterward (see bot/bot.ts's
+  // registration gate). SetNull rather than cascading: deleting a referrer
+  // must never delete the people they referred.
+  referredById      BigInt?
+  referredBy        Student?  @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals         Student[] @relation("Referrals")
+  // How many brand-new users this student has successfully referred.
+  // Incremented once per referred user at the moment their row is created
+  // (see bot/bot.ts) — reaching REFERRAL_GOAL (10) while still GUEST
+  // auto-promotes to STUDENT + groupName "Konkurs".
+  referralCount     Int      @default(0)
+
   testResults       TestResult[]
   attendanceRecords AttendanceRecord[]
   examResults       ExamResult[]
+
+  @@index([referredById])
 }
 
 model Test {

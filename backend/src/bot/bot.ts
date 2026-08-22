@@ -23,8 +23,25 @@ const BROADCAST_PROMPT =
   "(matn, rasm, video yoki fayl bo'lishi mumkin).";
 const BROADCAST_SENDING = "Yuborilmoqda, biroz kuting...";
 
+// Referral contest ("Konkurs"): invite this many brand-new users while still
+// a GUEST and you're auto-promoted to STUDENT + assigned to the "Konkurs"
+// group (see markAttendance's blanket restriction for that group — a
+// referral-won seat has no attendance obligation, by design).
+const REFERRAL_GOAL = 10;
+const KONKURS_UNLOCKED_MESSAGE =
+  "🎉 Tabriklaymiz! Siz 10 ta do'stingizni taklif qildingiz va endi \"Konkurs\" guruhi orqali " +
+  "talaba maqomiga ega bo'ldingiz. Endi Mini App orqali barcha materiallardan foydalanishingiz mumkin!";
+
 function isAdmin(telegramId: number) {
   return env.adminTelegramIds.has(telegramId.toString());
+}
+
+// Matches the payload Telegram appends to /start when a user opens
+// https://t.me/<bot>?start=ref_<telegramId> — "@BotUsername" is only ever
+// present when the command is invoked in a group, but harmless to handle.
+function parseReferralCode(text: string | undefined): string | null {
+  const match = text?.match(/^\/start(?:@\w+)?\s+ref_(\d+)/);
+  return match ? match[1] : null;
 }
 
 function subscribeKeyboard() {
@@ -132,6 +149,16 @@ bot.use(async (ctx, next) => {
   if (!student) {
     const fallbackName =
       [from.first_name, from.last_name].filter(Boolean).join(" ").trim() || "Foydalanuvchi";
+
+    const refCode = parseReferralCode(ctx.message?.text);
+    // Self-referral guard: a code matching your own telegramId can only ever
+    // happen via a malformed/spoofed link, since this branch only runs for a
+    // brand-new row (you can't already be your own referrer).
+    const referrer =
+      refCode && refCode !== from.id.toString()
+        ? await prisma.student.findUnique({ where: { telegramId: BigInt(refCode) } })
+        : null;
+
     student = await prisma.student.create({
       data: {
         telegramId,
@@ -139,8 +166,24 @@ bot.use(async (ctx, next) => {
         fullName: fallbackName,
         role: "GUEST",
         isRegistered: false,
+        ...(referrer ? { referredById: referrer.id } : {}),
       },
     });
+
+    if (referrer) {
+      const updatedReferrer = await prisma.student.update({
+        where: { id: referrer.id },
+        data: { referralCount: { increment: 1 } },
+      });
+
+      if (updatedReferrer.role === "GUEST" && updatedReferrer.referralCount >= REFERRAL_GOAL) {
+        await prisma.student.update({
+          where: { id: referrer.id },
+          data: { role: "STUDENT", groupName: "Konkurs" },
+        });
+        await bot.api.sendMessage(updatedReferrer.telegramId.toString(), KONKURS_UNLOCKED_MESSAGE).catch(() => undefined);
+      }
+    }
   }
 
   if (!student.isRegistered && ctx.message) {
@@ -278,10 +321,42 @@ bot.command("sendall", async (ctx) => {
   await ctx.reply(BROADCAST_PROMPT);
 });
 
+bot.command("konkurs", async (ctx) => {
+  if (!ctx.from) return;
+  const telegramId = BigInt(ctx.from.id);
+  const student = await prisma.student.findUnique({ where: { telegramId } });
+  if (!student) return;
+
+  const botUsername = bot.botInfo?.username;
+  const link = botUsername ? `https://t.me/${botUsername}?start=ref_${telegramId}` : null;
+  const invited = Math.min(student.referralCount, REFERRAL_GOAL);
+
+  const lines = [
+    "🏆 Konkurs — do'stlaringizni taklif qiling va kursga bepul yo'l oching!",
+    "",
+    link
+      ? `🔗 Sizning taklif havolangiz:\n${link}`
+      : "Havola vaqtincha mavjud emas, birozdan so'ng qayta urinib ko'ring.",
+    "",
+    `👥 Siz taklif qilgan do'stlar: ${invited} / ${REFERRAL_GOAL}`,
+  ];
+
+  if (student.role !== "GUEST") {
+    lines.push("", "✅ Siz allaqachon talaba sifatida ro'yxatdan o'tgansiz.");
+  } else if (invited >= REFERRAL_GOAL) {
+    lines.push("", "🎉 Tabriklaymiz, shartni bajardingiz!");
+  } else {
+    lines.push("", `Yana ${REFERRAL_GOAL - invited} ta do'stingizni taklif qiling va "Konkurs" guruhiga bepul qo'shiling!`);
+  }
+
+  await ctx.reply(lines.join("\n"), { link_preview_options: { is_disabled: true } });
+});
+
 bot.command("help", async (ctx) => {
   await ctx.reply(
     "/start — Mini App'ni ochish\n" +
       "/editname — Ism-familiyangizni o'zgartirish\n" +
+      "/konkurs — Do'stlaringizni taklif qilib bepul kursga yo'l oching\n" +
       "Savollar bo'yicha o'qituvchingizga murojaat qiling."
   );
 });
