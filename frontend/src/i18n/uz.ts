@@ -193,6 +193,7 @@ export const uz = {
     createTest: "Yangi test",
     createExam: "Yangi imtihon",
     testTitle: "Test nomi",
+    topicsCount: "mavzu",
     examTitle: "Imtihon nomi",
     startAttendance: "Davomatni boshlash",
     stopAttendance: "Davomatni to'xtatish",

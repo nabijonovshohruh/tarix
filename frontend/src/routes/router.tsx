@@ -15,6 +15,7 @@ import { ReviewScreen } from "../screens/Review/ReviewScreen";
 import { LeaderboardScreen } from "../screens/Leaderboard/LeaderboardScreen";
 import { AdminHomeScreen } from "../screens/Admin/AdminHomeScreen";
 import { AdminTestsListScreen } from "../screens/Admin/Tests/AdminTestsListScreen";
+import { AdminTestCategoryScreen } from "../screens/Admin/Tests/AdminTestCategoryScreen";
 import { AdminTestEditScreen } from "../screens/Admin/Tests/AdminTestEditScreen";
 import { AdminAttendanceScreen } from "../screens/Admin/Attendance/AdminAttendanceScreen";
 import { AdminSessionDetailScreen } from "../screens/Admin/Attendance/AdminSessionDetailScreen";
@@ -83,6 +84,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole role="admin">
             <AdminTestsListScreen />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "/admin/tests/:period",
+        element: (
+          <RequireRole role="admin">
+            <AdminTestCategoryScreen />
           </RequireRole>
         ),
       },
