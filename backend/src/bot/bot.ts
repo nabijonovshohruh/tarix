@@ -44,6 +44,29 @@ function parseReferralCode(text: string | undefined): string | null {
   return match ? match[1] : null;
 }
 
+// Credits a referred student's referral to their referrer — but only once
+// (referralCredited guards against double-crediting, since channel
+// subscription can be confirmed via more than one code path below). Reaching
+// REFERRAL_GOAL while still GUEST auto-promotes to STUDENT + "Konkurs".
+async function creditReferralIfNeeded(student: { id: bigint; referredById: bigint | null; referralCredited: boolean }) {
+  if (!student.referredById || student.referralCredited) return;
+
+  await prisma.student.update({ where: { id: student.id }, data: { referralCredited: true } });
+
+  const updatedReferrer = await prisma.student.update({
+    where: { id: student.referredById },
+    data: { referralCount: { increment: 1 } },
+  });
+
+  if (updatedReferrer.role === "GUEST" && updatedReferrer.referralCount >= REFERRAL_GOAL) {
+    await prisma.student.update({
+      where: { id: updatedReferrer.id },
+      data: { role: "STUDENT", groupName: "Konkurs" },
+    });
+    await bot.api.sendMessage(updatedReferrer.telegramId.toString(), KONKURS_UNLOCKED_MESSAGE).catch(() => undefined);
+  }
+}
+
 function subscribeKeyboard() {
   const keyboard = new InlineKeyboard();
   const channelUrl = getChannelUrl();
@@ -77,30 +100,76 @@ async function sendWelcome(ctx: Context) {
   );
 }
 
+// Ensures a Student row exists for this telegramId, capturing who referred
+// them (from /start ref_<telegramId>) if this is their very first-ever
+// update. Deliberately factored out so it can run before the channel-
+// subscription block below — a referred user's code lives only in that one
+// /start message, and if row-creation waited until after the subscription
+// gate (like it used to), an unsubscribed referral click would lose the
+// code forever the moment the gate intercepted it.
+async function ensureStudent(ctx: Context, telegramId: bigint) {
+  const existing = await prisma.student.findUnique({ where: { telegramId } });
+  if (existing) return existing;
+
+  const from = ctx.from!;
+  const fallbackName = [from.first_name, from.last_name].filter(Boolean).join(" ").trim() || "Foydalanuvchi";
+
+  const refCode = parseReferralCode(ctx.message?.text);
+  // Self-referral guard: a code matching your own telegramId can only ever
+  // happen via a malformed/spoofed link, since this only runs for a brand-new
+  // row (you can't already be your own referrer).
+  const referrer =
+    refCode && refCode !== from.id.toString()
+      ? await prisma.student.findUnique({ where: { telegramId: BigInt(refCode) } })
+      : null;
+
+  return prisma.student.create({
+    data: {
+      telegramId,
+      username: from.username,
+      fullName: fallbackName,
+      role: "GUEST",
+      isRegistered: false,
+      ...(referrer ? { referredById: referrer.id } : {}),
+    },
+  });
+}
+
 // Mandatory channel subscription gate — runs first, before registration.
 // Entirely a no-op (isChannelSubscriber always resolves true) when CHANNEL_ID
 // isn't configured, so this is safe to leave wired in for deployments that
 // don't use the feature.
 //
-// Same non-message-update guard as the registration gate below: only ever
-// replies for real messages, and only ever answers the dedicated "Tekshirish"
-// callback — every other update type (my_chat_member, other callback
-// queries, etc.) falls through untouched so it can't break unrelated
-// handlers or throw trying to message someone it shouldn't.
+// Only ever replies for real messages, and only ever answers the dedicated
+// "Tekshirish" callback — every other update type (my_chat_member, other
+// callback queries, etc.) falls through untouched so it can't break
+// unrelated handlers or throw trying to message someone it shouldn't.
 bot.use(async (ctx, next) => {
   const from = ctx.from;
   if (!from) return next();
   if (!ctx.message && !ctx.callbackQuery) return next();
+
+  const telegramId = BigInt(from.id);
+  const student = await ensureStudent(ctx, telegramId);
+
   if (ctx.callbackQuery?.data === CHECK_SUBSCRIPTION_ACTION) return next();
 
-  const subscribed = await isChannelSubscriber(bot.api, BigInt(from.id));
-  if (subscribed) return next();
-
-  if (ctx.message) {
-    await sendSubscribePrompt(ctx);
-  } else if (ctx.callbackQuery) {
-    await ctx.answerCallbackQuery({ text: NOT_SUBSCRIBED_TOAST, show_alert: true });
+  const subscribed = await isChannelSubscriber(bot.api, telegramId);
+  if (!subscribed) {
+    if (ctx.message) {
+      await sendSubscribePrompt(ctx);
+    } else if (ctx.callbackQuery) {
+      await ctx.answerCallbackQuery({ text: NOT_SUBSCRIBED_TOAST, show_alert: true });
+    }
+    return;
   }
+
+  // Covers a referred user who was already a channel member before ever
+  // starting the bot — they pass this check on their very first message, so
+  // they'd otherwise never hit the Tekshirish callback that also credits.
+  await creditReferralIfNeeded(student);
+
+  return next();
 });
 
 bot.callbackQuery(CHECK_SUBSCRIPTION_ACTION, async (ctx) => {
@@ -117,6 +186,8 @@ bot.callbackQuery(CHECK_SUBSCRIPTION_ACTION, async (ctx) => {
   await ctx.deleteMessage().catch(() => undefined);
 
   const student = await prisma.student.findUnique({ where: { telegramId } });
+  if (student) await creditReferralIfNeeded(student);
+
   if (student?.isRegistered) {
     await sendWelcome(ctx);
   } else {
@@ -124,12 +195,13 @@ bot.callbackQuery(CHECK_SUBSCRIPTION_ACTION, async (ctx) => {
   }
 });
 
-// Runs before every command/message handler. New Telegram accounts are
-// created here as GUEST + unregistered, and stay locked out of every other
-// command (and, via requireRegistered on the API side, the whole Mini App)
-// until they reply with plain text — which is captured as their real full
-// name — same one-time gate regardless of what they typed first (/start,
-// /help, or anything else).
+// Runs before every command/message handler, once the student is known to
+// exist (created by ensureStudent above) and be channel-subscribed. New
+// accounts stay locked out of every other command (and, via
+// requireRegistered on the API side, the whole Mini App) until they reply
+// with plain text — which is captured as their real full name — same
+// one-time gate regardless of what they typed first (/start, /help, or
+// anything else).
 //
 // The registration prompt is only ever sent in response to an actual
 // message (ctx.message set). Every other update type that still carries
@@ -144,47 +216,8 @@ bot.use(async (ctx, next) => {
   if (!from) return next();
 
   const telegramId = BigInt(from.id);
-  let student = await prisma.student.findUnique({ where: { telegramId } });
-
-  if (!student) {
-    const fallbackName =
-      [from.first_name, from.last_name].filter(Boolean).join(" ").trim() || "Foydalanuvchi";
-
-    const refCode = parseReferralCode(ctx.message?.text);
-    // Self-referral guard: a code matching your own telegramId can only ever
-    // happen via a malformed/spoofed link, since this branch only runs for a
-    // brand-new row (you can't already be your own referrer).
-    const referrer =
-      refCode && refCode !== from.id.toString()
-        ? await prisma.student.findUnique({ where: { telegramId: BigInt(refCode) } })
-        : null;
-
-    student = await prisma.student.create({
-      data: {
-        telegramId,
-        username: from.username,
-        fullName: fallbackName,
-        role: "GUEST",
-        isRegistered: false,
-        ...(referrer ? { referredById: referrer.id } : {}),
-      },
-    });
-
-    if (referrer) {
-      const updatedReferrer = await prisma.student.update({
-        where: { id: referrer.id },
-        data: { referralCount: { increment: 1 } },
-      });
-
-      if (updatedReferrer.role === "GUEST" && updatedReferrer.referralCount >= REFERRAL_GOAL) {
-        await prisma.student.update({
-          where: { id: referrer.id },
-          data: { role: "STUDENT", groupName: "Konkurs" },
-        });
-        await bot.api.sendMessage(updatedReferrer.telegramId.toString(), KONKURS_UNLOCKED_MESSAGE).catch(() => undefined);
-      }
-    }
-  }
+  const student = await prisma.student.findUnique({ where: { telegramId } });
+  if (!student) return next();
 
   if (!student.isRegistered && ctx.message) {
     const text = ctx.message.text?.trim();

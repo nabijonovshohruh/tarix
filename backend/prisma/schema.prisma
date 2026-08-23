@@ -96,10 +96,16 @@ model Student {
   referredBy        Student?  @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
   referrals         Student[] @relation("Referrals")
   // How many brand-new users this student has successfully referred.
-  // Incremented once per referred user at the moment their row is created
-  // (see bot/bot.ts) — reaching REFERRAL_GOAL (10) while still GUEST
-  // auto-promotes to STUDENT + groupName "Konkurs".
+  // Incremented once per referred user, but only once that referred user is
+  // confirmed subscribed to the mandatory channel (see bot/bot.ts) — reaching
+  // REFERRAL_GOAL (10) while still GUEST auto-promotes to STUDENT +
+  // groupName "Konkurs".
   referralCount     Int      @default(0)
+  // True once this student's own referral has been counted toward their
+  // referrer's referralCount — guards against double-crediting, since
+  // channel-subscription confirmation can be reached via more than one code
+  // path (see bot/bot.ts's creditReferralIfNeeded).
+  referralCredited  Boolean  @default(false)
 
   testResults       TestResult[]
   attendanceRecords AttendanceRecord[]
