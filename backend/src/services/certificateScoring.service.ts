@@ -183,17 +183,11 @@ export function gradeCertSubmission(
 }
 
 /**
- * Simplified Rasch-style proxy (no calibrated per-item difficulty data
- * exists yet, so this is not a true 1PL Rasch ability estimate): the raw
- * percentage is treated as a proportion-correct `p`, converted to a logit
- * via the standard logistic-odds transform ln(p/(1-p)), then rescaled to a
- * 100-point score with a mean-50/SD-10 T-score transform
- * (scaledScore = 50 + 10*logit), clamped to [0, 100]. Grade bands are the
- * fixed cutoff table below. `p` is clamped away from the 0/1 boundary with a
- * 1/(2*n) continuity correction (n = item count) so a perfect or zero score
- * never produces an infinite logit.
+ * Fixed scaled-score cutoffs for the national certificate grade bands.
+ * Shared between the (now-batch) Rasch calibration service and anything
+ * else that needs to band a 0-100 scaledScore into a CertGrade.
  */
-const GRADE_BANDS: { min: number; grade: CertGrade }[] = [
+export const GRADE_BANDS: { min: number; grade: CertGrade }[] = [
   { min: 70, grade: "A_PLUS" },
   { min: 65, grade: "A" },
   { min: 60, grade: "B_PLUS" },
@@ -202,26 +196,9 @@ const GRADE_BANDS: { min: number; grade: CertGrade }[] = [
   { min: 46, grade: "C" },
 ];
 
-function gradeForScaledScore(scaledScore: number): CertGrade {
+export function gradeForScaledScore(scaledScore: number): CertGrade {
   for (const band of GRADE_BANDS) {
     if (scaledScore >= band.min) return band.grade;
   }
   return "NONE";
-}
-
-export interface RaschProxyScore {
-  logit: number;
-  scaledScore: number;
-  grade: CertGrade;
-}
-
-export function computeRaschProxyScore(percentage: number, itemCount: number): RaschProxyScore {
-  const p = percentage / 100;
-  const epsilon = itemCount > 0 ? 1 / (2 * itemCount) : 0.01;
-  const clampedP = Math.min(1 - epsilon, Math.max(epsilon, p));
-
-  const logit = Math.log(clampedP / (1 - clampedP));
-  const scaledScore = Math.min(100, Math.max(0, 50 + 10 * logit));
-
-  return { logit, scaledScore, grade: gradeForScaledScore(scaledScore) };
 }

@@ -1,10 +1,10 @@
 import { get, post, put, del } from "./client";
 import {
+  CalibrationSummary,
   CertAnswerSheetTest,
   CertificateQuestion,
   CertificateResult,
   CertificateTest,
-  CertGradeSummary,
   CertSubmittedAnswer,
   CorrectOption,
   MatchOption,
@@ -62,10 +62,10 @@ export const deleteCertificateQuestion = (id: string) => del(`/certificate-quest
 export const accessCertificateTestByCode = (code: string) =>
   post<{ test: CertAnswerSheetTest }>("/certificate-tests/access", { code });
 
+// No grade/score is returned here — results are hidden until the admin
+// calibrates and releases the whole test (see calibrateCertificateResults).
 export const submitCertificateTest = (testId: string, answers: CertSubmittedAnswer[]) =>
-  post<{ result: CertificateResult; grade: CertGradeSummary }>(`/certificate-tests/${testId}/submit`, {
-    answers,
-  });
+  post<{ result: CertificateResult }>(`/certificate-tests/${testId}/submit`, { answers });
 
 export const getMyCertificateResults = () => get<{ results: CertificateResult[] }>("/certificate-results/me");
 
@@ -74,3 +74,6 @@ export const getCertificateResultReview = (resultId: string) =>
 
 export const getCertificateResults = (testId: string) =>
   get<{ results: CertificateResult[] }>(`/certificate-tests/${testId}/results`);
+
+export const calibrateCertificateResults = (testId: string) =>
+  post<{ summary: CalibrationSummary }>(`/certificate-tests/${testId}/calibrate`);

@@ -405,8 +405,15 @@ model CertificateTest {
   // certificates.controller.ts) and never changes.
   testCode    String   @unique
   isPublished Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  // Null until an admin clicks "Calibrate & Release" (see
+  // raschCalibration.service.ts) — every CertificateResult for this test is
+  // scored against a fixed item-difficulty snapshot the moment that runs and
+  // this is stamped, all at once, only after every submission is in. Before
+  // that, results exist (answers are stored at submit time) but carry no
+  // score/grade — students only see "submitted, pending" until this is set.
+  resultsReleasedAt DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   questions CertificateQuestion[]
   results   CertificateResult[]
@@ -452,14 +459,14 @@ model CertificateQuestion {
   @@index([testId])
 }
 
-// rawScore/maxPossible/percentage are the raw tally; logit/scaledScore/grade
-// are the simplified Rasch-style proxy (see certificateScoring.service.ts):
-// percentage -> logit via the standard logistic-odds transform, then
-// scaledScore = 50 + 10*logit (a mean-50/SD-10 T-score rescale), clamped to
-// [0,100] and banded into `grade` per the fixed cutoff table. This is a
-// placeholder curve, not a psychometrically calibrated 1PL Rasch fit (no
-// per-item difficulty calibration data exists yet) — swap the transform in
-// one place if/when real item-difficulty calibration becomes available.
+// rawScore/maxPossible/percentage are computed immediately at submission
+// time (from the already-graded CertificateAnswer rows) so calibration has
+// data to work with, but are never shown to the student before release.
+// logit/scaledScore/grade start out null and are filled in — for every
+// result of the test at once — by raschCalibration.service.ts's batch 1PL
+// Rasch (PROX + JMLE) calibration, triggered by the admin's "Calibrate &
+// Release" action (see CertificateTest.resultsReleasedAt). A null grade is
+// the canonical "not yet released" signal throughout the API.
 model CertificateResult {
   id        BigInt          @id @default(autoincrement())
   studentId BigInt
@@ -470,10 +477,10 @@ model CertificateResult {
   rawScore    Float
   maxPossible Float
   percentage  Float
-  logit       Float
-  scaledScore Float
-  grade       CertGrade
-  createdAt   DateTime  @default(now())
+  logit       Float?
+  scaledScore Float?
+  grade       CertGrade?
+  createdAt   DateTime   @default(now())
 
   answers CertificateAnswer[]
 

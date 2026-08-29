@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Header } from "../../components/layout/Header";
 import { Card } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
@@ -71,6 +71,10 @@ export function CertificateCodeEntryScreen() {
             {loading ? uz.common.loading : uz.certificateTest.loadTest}
           </Button>
         </Card>
+
+        <Link to="/certificate-test/results" className="block text-center text-sm text-brand-600 underline dark:text-brand-400">
+          {uz.certificateTest.myResults}
+        </Link>
       </div>
     </div>
   );

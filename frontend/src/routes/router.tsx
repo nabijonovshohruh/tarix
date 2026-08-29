@@ -31,6 +31,7 @@ import { AdminCertificatesManagementScreen } from "../screens/Admin/Materials/Ad
 import { CertificateCodeEntryScreen } from "../screens/Certificates/CertificateCodeEntryScreen";
 import { CertificateAnswerSheetScreen } from "../screens/Certificates/CertificateAnswerSheetScreen";
 import { CertificateResultScreen } from "../screens/Certificates/CertificateResultScreen";
+import { CertificateMyResultsScreen } from "../screens/Certificates/CertificateMyResultsScreen";
 import { AdminCertificateTestsListScreen } from "../screens/Admin/Certificates/AdminCertificateTestsListScreen";
 import { AdminCertificateTestCreateScreen } from "../screens/Admin/Certificates/AdminCertificateTestCreateScreen";
 import { AdminCertificateResultsScreen } from "../screens/Admin/Certificates/AdminCertificateResultsScreen";
@@ -62,6 +63,7 @@ export const router = createBrowserRouter([
       { path: "/certificate-test", element: <CertificateCodeEntryScreen /> },
       { path: "/certificate-test/answer-sheet", element: <CertificateAnswerSheetScreen /> },
       { path: "/certificate-test/result", element: <CertificateResultScreen /> },
+      { path: "/certificate-test/results", element: <CertificateMyResultsScreen /> },
 
       {
         path: "/leaderboard",

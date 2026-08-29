@@ -1,10 +1,12 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import { CertQuestionType, CorrectOption, MatchAnswerOption } from "@prisma/client";
+import { bot } from "../bot/bot";
 import { env } from "../config/env";
 import { prisma } from "../db/prisma";
 import { HttpError } from "../middleware/errorHandler";
-import { computeRaschProxyScore, gradeCertSubmission, SubmittedCertAnswer } from "../services/certificateScoring.service";
+import { gradeCertSubmission, SubmittedCertAnswer } from "../services/certificateScoring.service";
+import { calibrateCertificateTest } from "../services/raschCalibration.service";
 import { generateTestCode } from "../utils/testCode";
 
 const testInputSchema = z.object({
@@ -240,6 +242,13 @@ export async function deleteCertificateQuestion(req: Request, res: Response) {
   res.status(204).send();
 }
 
+/**
+ * Grading happens immediately (rawScore/maxPossible/percentage are stored
+ * right away — the calibration step needs them), but nothing score-related
+ * is ever returned here or shown to the student: logit/scaledScore/grade
+ * stay null until an admin runs calibrateCertificateTest for the whole
+ * test, which is the only thing that can turn a null grade into a real one.
+ */
 export async function submitCertificateTest(req: Request, res: Response) {
   const testId = BigInt(req.params.id);
   const { answers } = submitSchema.parse(req.body);
@@ -251,7 +260,6 @@ export async function submitCertificateTest(req: Request, res: Response) {
   if (!test || !test.isPublished) throw new HttpError(404, "test not found");
 
   const summary = gradeCertSubmission(test.questions, answers as SubmittedCertAnswer[]);
-  const rasch = computeRaschProxyScore(summary.percentage, summary.totalQuestions);
 
   const result = await prisma.$transaction(async (tx) => {
     const result = await tx.certificateResult.create({
@@ -261,9 +269,6 @@ export async function submitCertificateTest(req: Request, res: Response) {
         rawScore: summary.rawScore,
         maxPossible: summary.maxPossible,
         percentage: summary.percentage,
-        logit: rasch.logit,
-        scaledScore: rasch.scaledScore,
-        grade: rasch.grade,
       },
     });
     await tx.certificateAnswer.createMany({
@@ -272,19 +277,7 @@ export async function submitCertificateTest(req: Request, res: Response) {
     return result;
   });
 
-  res.status(201).json({
-    result,
-    grade: {
-      rawScore: summary.rawScore,
-      maxPossible: summary.maxPossible,
-      percentage: summary.percentage,
-      correctQuestions: summary.correctQuestions,
-      totalQuestions: summary.totalQuestions,
-      logit: rasch.logit,
-      scaledScore: rasch.scaledScore,
-      certGrade: rasch.grade,
-    },
-  });
+  res.status(201).json({ result });
 }
 
 export async function getCertificateResultReview(req: Request, res: Response) {
@@ -300,8 +293,45 @@ export async function getCertificateResultReview(req: Request, res: Response) {
   if (req.user!.role !== "admin" && result.studentId !== req.user!.id) {
     throw new HttpError(403, "forbidden");
   }
+  // Per-question correctness would leak the score before release — same
+  // "not released yet" signal as the null grade on the result itself.
+  if (req.user!.role !== "admin" && !result.test.resultsReleasedAt) {
+    throw new HttpError(403, "natijalar hali e'lon qilinmagan");
+  }
 
   res.json({ result });
+}
+
+/**
+ * Admin action: runs the batch Rasch calibration across every submission for
+ * this test, writes each result's logit/scaledScore/grade, stamps the test
+ * as released, and best-effort notifies each student via the bot — a failed
+ * notification (blocked bot, deleted account) never fails the calibration
+ * itself, since the scores are already committed by that point.
+ */
+export async function calibrateAndReleaseCertificateResults(req: Request, res: Response) {
+  const testId = BigInt(req.params.id);
+  const test = await prisma.certificateTest.findUnique({ where: { id: testId } });
+  if (!test) throw new HttpError(404, "test not found");
+
+  const summary = await calibrateCertificateTest(testId);
+
+  const results = await prisma.certificateResult.findMany({
+    where: { testId },
+    include: { student: true },
+  });
+  await Promise.all(
+    results.map((r) =>
+      bot.api
+        .sendMessage(
+          r.student.telegramId.toString(),
+          `🎓 "${test.title}" natijalari e'lon qilindi! Natijangizni ko'rish uchun ilovaga o'ting.`
+        )
+        .catch(() => undefined)
+    )
+  );
+
+  res.json({ summary });
 }
 
 export async function getCertificateResults(req: Request, res: Response) {

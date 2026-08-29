@@ -15,6 +15,7 @@ import {
   getCertificateResults,
   getMyCertificateResults,
   getCertificateResultReview,
+  calibrateAndReleaseCertificateResults,
 } from "../controllers/certificates.controller";
 
 export const certificatesRouter = Router();
@@ -84,4 +85,9 @@ certificatesRouter.get(
   "/certificate-tests/:id/results",
   requireRole("admin"),
   asyncHandler(getCertificateResults)
+);
+certificatesRouter.post(
+  "/certificate-tests/:id/calibrate",
+  requireRole("admin"),
+  asyncHandler(calibrateAndReleaseCertificateResults)
 );

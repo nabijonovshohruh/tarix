@@ -62,8 +62,8 @@ export function CertificateAnswerSheetScreen() {
         return { questionId: q.id, answerA: answer?.a, answerB: answer?.b };
       });
 
-      const { grade } = await submitCertificateTest(test.id, answers);
-      navigate("/certificate-test/result", { state: { grade, testTitle: test.title } });
+      await submitCertificateTest(test.id, answers);
+      navigate("/certificate-test/result", { state: { testTitle: test.title } });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : uz.common.error);
     } finally {

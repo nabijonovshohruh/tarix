@@ -39,11 +39,14 @@ export function AdminCertificateTestsListScreen() {
         {tests?.length === 0 && <EmptyState />}
         {tests?.map((t) => (
           <Card key={t.id} className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <p className="font-semibold">{t.title}</p>
-              <Badge tone={t.isPublished ? "success" : "neutral"}>
-                {t.isPublished ? uz.admin.published : uz.admin.draft}
-              </Badge>
+              <div className="flex shrink-0 gap-1">
+                <Badge tone={t.isPublished ? "success" : "neutral"}>
+                  {t.isPublished ? uz.admin.published : uz.admin.draft}
+                </Badge>
+                {t.resultsReleasedAt && <Badge tone="success">{uz.admin.resultsReleased}</Badge>}
+              </div>
             </div>
             <p className="text-sm text-slate-500 dark:text-slate-400">
               {uz.admin.testCode}:{" "}

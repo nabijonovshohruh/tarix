@@ -270,6 +270,10 @@ export interface CertificateTest {
   title: string;
   testCode: string;
   isPublished: boolean;
+  // Null until an admin runs "Calibrate & Release" — see
+  // certificates.controller.ts's calibrateAndReleaseCertificateResults.
+  // Before that, every CertificateResult for this test has a null grade.
+  resultsReleasedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   questions?: CertificateQuestion[];
@@ -302,17 +306,10 @@ export interface CertSubmittedAnswer {
   answerB?: string;
 }
 
-export interface CertGradeSummary {
-  rawScore: number;
-  maxPossible: number;
-  percentage: number;
-  correctQuestions: number;
-  totalQuestions: number;
-  logit: number;
-  scaledScore: number;
-  certGrade: CertGrade;
-}
-
+// logit/scaledScore/grade are null until the test's results are calibrated
+// and released (batch Rasch calibration — see backend's
+// raschCalibration.service.ts) — a null `grade` is the "pending" signal
+// used throughout the student-facing UI.
 export interface CertificateResult {
   id: string;
   studentId: string;
@@ -322,8 +319,15 @@ export interface CertificateResult {
   rawScore: number;
   maxPossible: number;
   percentage: number;
-  logit: number;
-  scaledScore: number;
-  grade: CertGrade;
+  logit: number | null;
+  scaledScore: number | null;
+  grade: CertGrade | null;
   createdAt: string;
+}
+
+export interface CalibrationSummary {
+  calibratedCount: number;
+  meanScaledScore: number;
+  itemCount: number;
+  iterations: number;
 }
