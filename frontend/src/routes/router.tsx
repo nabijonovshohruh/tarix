@@ -28,6 +28,12 @@ import { MaterialListScreen } from "../screens/Materials/MaterialListScreen";
 import { MaterialDetailScreen } from "../screens/Materials/MaterialDetailScreen";
 import { AdminGuidesManagementScreen } from "../screens/Admin/Materials/AdminGuidesManagementScreen";
 import { AdminCertificatesManagementScreen } from "../screens/Admin/Materials/AdminCertificatesManagementScreen";
+import { CertificateCodeEntryScreen } from "../screens/Certificates/CertificateCodeEntryScreen";
+import { CertificateAnswerSheetScreen } from "../screens/Certificates/CertificateAnswerSheetScreen";
+import { CertificateResultScreen } from "../screens/Certificates/CertificateResultScreen";
+import { AdminCertificateTestsListScreen } from "../screens/Admin/Certificates/AdminCertificateTestsListScreen";
+import { AdminCertificateTestCreateScreen } from "../screens/Admin/Certificates/AdminCertificateTestCreateScreen";
+import { AdminCertificateResultsScreen } from "../screens/Admin/Certificates/AdminCertificateResultsScreen";
 
 export const router = createBrowserRouter([
   {
@@ -52,6 +58,10 @@ export const router = createBrowserRouter([
       { path: "/exams/:examId/take", element: <ExamTakingScreen /> },
       { path: "/exams/:examId/result/:resultId", element: <ExamResultScreen /> },
       { path: "/exams/:examId/result/:resultId/review", element: <ReviewScreen kind="exam" /> },
+
+      { path: "/certificate-test", element: <CertificateCodeEntryScreen /> },
+      { path: "/certificate-test/answer-sheet", element: <CertificateAnswerSheetScreen /> },
+      { path: "/certificate-test/result", element: <CertificateResultScreen /> },
 
       {
         path: "/leaderboard",
@@ -164,6 +174,30 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole role="admin">
             <AdminCertificatesManagementScreen />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "/admin/certificate-tests",
+        element: (
+          <RequireRole role="admin">
+            <AdminCertificateTestsListScreen />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "/admin/certificate-tests/new",
+        element: (
+          <RequireRole role="admin">
+            <AdminCertificateTestCreateScreen />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "/admin/certificate-tests/:testId/results",
+        element: (
+          <RequireRole role="admin">
+            <AdminCertificateResultsScreen />
           </RequireRole>
         ),
       },

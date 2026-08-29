@@ -382,6 +382,12 @@ model Material {
 model CertificateTest {
   id          BigInt   @id @default(autoincrement())
   title       String
+  // Short, teacher-facing PIN (e.g. "592041") a student types into the
+  // Mini App's code-entry screen to load this test's digital answer sheet —
+  // the sole access path now; there is no student-facing browse/list.
+  // Generated once at creation time (see generateUniqueTestCode in
+  // certificates.controller.ts) and never changes.
+  testCode    String   @unique
   isPublished Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

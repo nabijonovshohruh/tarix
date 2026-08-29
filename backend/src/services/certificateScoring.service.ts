@@ -1,14 +1,21 @@
 import { CertGrade, CertQuestionType, CorrectOption, Prisma } from "@prisma/client";
 import { isFuzzyTextMatch } from "../utils/textMatch";
 
+// Matching questions (Q33-35) offer 6 options (A-F), unlike MCQ's 4 (A-D) —
+// deliberately a distinct type from the Prisma CorrectOption enum, not a
+// reuse of it. matchItems is stored as a plain Json blob (see schema.prisma),
+// so this is a TypeScript/Zod-level constraint only, not a DB column type.
+export const MATCH_OPTIONS = ["A", "B", "C", "D", "E", "F"] as const;
+export type MatchOption = (typeof MATCH_OPTIONS)[number];
+
 export interface MatchItem {
   label: string;
-  correctOption: CorrectOption;
+  correctOption: MatchOption;
 }
 
 export interface SelectedMatch {
   label: string;
-  selectedOption: CorrectOption;
+  selectedOption: MatchOption;
 }
 
 /** Parses CertificateQuestion.matchItems (stored as Json) back into typed pairs. */
@@ -18,7 +25,7 @@ export function parseMatchItems(value: Prisma.JsonValue | null): MatchItem[] {
     .filter((item): item is Record<string, Prisma.JsonValue> => typeof item === "object" && item !== null)
     .map((item) => ({
       label: String(item.label ?? ""),
-      correctOption: item.correctOption as CorrectOption,
+      correctOption: item.correctOption as MatchOption,
     }));
 }
 

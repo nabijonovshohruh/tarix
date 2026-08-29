@@ -11,6 +11,7 @@ const tiles = [
   { to: "/leaderboard", icon: "🏆", title: uz.home.leaderboard, desc: uz.home.leaderboardDesc },
   { to: "/materials/guides", icon: "📖", title: uz.home.guides, desc: uz.home.guidesDesc },
   { to: "/materials/certificates", icon: "🎓", title: uz.home.certificates, desc: uz.home.certificatesDesc },
+  { to: "/certificate-test", icon: "🔑", title: uz.home.certificateTest, desc: uz.home.certificateTestDesc },
 ];
 
 export function HomeScreen() {

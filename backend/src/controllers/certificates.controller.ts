@@ -1,14 +1,17 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import { CertificateQuestion, CertQuestionType, CorrectOption, Prisma } from "@prisma/client";
+import { env } from "../config/env";
 import { prisma } from "../db/prisma";
 import { HttpError } from "../middleware/errorHandler";
 import {
   computeRaschProxyScore,
   gradeCertSubmission,
+  MATCH_OPTIONS,
   parseMatchItems,
   SubmittedCertAnswer,
 } from "../services/certificateScoring.service";
+import { generateTestCode } from "../utils/testCode";
 
 const testInputSchema = z.object({
   title: z.string().min(1),
@@ -21,7 +24,7 @@ const testUpdateSchema = z.object({
 
 const matchItemSchema = z.object({
   label: z.string().min(1),
-  correctOption: z.nativeEnum(CorrectOption),
+  correctOption: z.enum(MATCH_OPTIONS),
 });
 
 // A discriminated union (rather than one flat optional-everything schema)
@@ -100,13 +103,17 @@ function toQuestionData(body: QuestionInput) {
   };
 }
 
+const accessSchema = z.object({
+  code: z.string().trim().min(1),
+});
+
 const submitSchema = z.object({
   answers: z.array(
     z.object({
       questionId: z.string(),
       selectedOption: z.nativeEnum(CorrectOption).optional(),
       selectedMatches: z
-        .array(z.object({ label: z.string(), selectedOption: z.nativeEnum(CorrectOption) }))
+        .array(z.object({ label: z.string(), selectedOption: z.enum(MATCH_OPTIONS) }))
         .optional(),
       answerA: z.string().optional(),
       answerB: z.string().optional(),
@@ -114,21 +121,45 @@ const submitSchema = z.object({
   ),
 });
 
-/** Removes the answer key from a question before it's sent to a student. */
-function stripQuestionAnswer(q: CertificateQuestion) {
-  const { correctOption, explanation, matchItems, openAnswerA, openAnswerB, ...rest } = q;
+// The Mini App is a pure digital answer sheet — the questions themselves are
+// distributed separately (printed/PDF), so a student never needs
+// questionText, explanation, or MCQ option text, just enough structure to
+// render the right input per question: A-D buttons (MCQ), an A-F dropdown
+// per matched item (MATCHING), or one/two text fields (OPEN).
+function toAnswerSheetQuestion(q: CertificateQuestion) {
+  const base = { id: q.id.toString(), order: q.order, type: q.type };
   if (q.type === "MATCHING") {
-    return { ...rest, matchItems: parseMatchItems(matchItems).map((item) => ({ label: item.label })) };
+    return { ...base, matchItems: parseMatchItems(q.matchItems).map((item) => ({ label: item.label })) };
   }
-  return rest;
+  if (q.type === "OPEN") {
+    return { ...base, openLabelA: q.openLabelA, openLabelB: q.openLabelB };
+  }
+  return base;
 }
 
-export async function listCertificateTests(req: Request, res: Response) {
-  const isAdmin = req.user!.role === "admin";
-  const includeAll = isAdmin && req.query.all === "true";
+async function generateUniqueTestCode(): Promise<string> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const code = generateTestCode();
+    const existing = await prisma.certificateTest.findUnique({ where: { testCode: code } });
+    if (!existing) return code;
+  }
+  throw new HttpError(500, "test kodini generatsiya qilib bo'lmadi, qayta urinib ko'ring");
+}
 
+function buildAccessLink(code: string): string | null {
+  if (!env.WEBAPP_URL) return null;
+  const url = new URL(env.WEBAPP_URL);
+  url.searchParams.set("certCode", code);
+  return url.toString();
+}
+
+// Both routes below are admin-only (see certificates.routes.ts) — students
+// never browse or open a certificate test by id, only via the test-code
+// access flow (accessCertificateTestByCode), so there's no student-facing
+// stripping/publish-gating to do here; admins manage drafts and published
+// tests alike.
+export async function listCertificateTests(req: Request, res: Response) {
   const tests = await prisma.certificateTest.findMany({
-    where: includeAll ? {} : { isPublished: true },
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { questions: true } } },
   });
@@ -143,21 +174,38 @@ export async function getCertificateTest(req: Request, res: Response) {
   });
   if (!test) throw new HttpError(404, "test not found");
 
-  const isAdmin = req.user!.role === "admin";
-  if (!isAdmin && !test.isPublished) throw new HttpError(404, "test not found");
-
-  res.json({
-    test: {
-      ...test,
-      questions: isAdmin ? test.questions : test.questions.map(stripQuestionAnswer),
-    },
-  });
+  res.json({ test, accessLink: buildAccessLink(test.testCode) });
 }
 
 export async function createCertificateTest(req: Request, res: Response) {
   const body = testInputSchema.parse(req.body);
-  const test = await prisma.certificateTest.create({ data: body });
-  res.status(201).json({ test });
+  const testCode = await generateUniqueTestCode();
+  const test = await prisma.certificateTest.create({ data: { ...body, testCode } });
+  res.status(201).json({ test, accessLink: buildAccessLink(testCode) });
+}
+
+/**
+ * Student entry point: trade a short PIN for the digital answer sheet.
+ * Deliberately a POST (not GET /:code) so the code travels in the body, not
+ * the URL/browser history, and to keep the "wrong code" / "not published"
+ * cases both collapse to the same generic 404 (no oracle for guessing codes).
+ */
+export async function accessCertificateTestByCode(req: Request, res: Response) {
+  const { code } = accessSchema.parse(req.body);
+
+  const test = await prisma.certificateTest.findUnique({
+    where: { testCode: code },
+    include: { questions: { orderBy: { order: "asc" } } },
+  });
+  if (!test || !test.isPublished) throw new HttpError(404, "Test kodi topilmadi");
+
+  res.json({
+    test: {
+      id: test.id.toString(),
+      title: test.title,
+      questions: test.questions.map(toAnswerSheetQuestion),
+    },
+  });
 }
 
 export async function updateCertificateTest(req: Request, res: Response) {

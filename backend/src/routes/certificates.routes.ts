@@ -10,6 +10,7 @@ import {
   addCertificateQuestion,
   updateCertificateQuestion,
   deleteCertificateQuestion,
+  accessCertificateTestByCode,
   submitCertificateTest,
   getCertificateResults,
   getMyCertificateResults,
@@ -28,14 +29,19 @@ certificatesRouter.get(
   asyncHandler(getCertificateResultReview)
 );
 
-// List browsing stays open to any authenticated role, same as tests/exams;
-// opening/submitting a specific certificate test is restricted to
-// student/admin — unlike Test, there is no guest free-preview tier here.
-certificatesRouter.get("/certificate-tests", asyncHandler(listCertificateTests));
+// Students never browse or open a test by id — the only entry point is the
+// test-code access flow below. Listing/opening by id is admin-only, for
+// managing the question bank and reading back each test's code.
+certificatesRouter.get("/certificate-tests", requireRole("admin"), asyncHandler(listCertificateTests));
 certificatesRouter.get(
   "/certificate-tests/:id",
-  requireRole("student", "admin"),
+  requireRole("admin"),
   asyncHandler(getCertificateTest)
+);
+certificatesRouter.post(
+  "/certificate-tests/access",
+  requireRole("student"),
+  asyncHandler(accessCertificateTestByCode)
 );
 certificatesRouter.post(
   "/certificate-tests",

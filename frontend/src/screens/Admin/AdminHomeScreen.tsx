@@ -14,6 +14,7 @@ const sections = [
   { to: "/admin/students", icon: "👥", title: uz.admin.studentManagement },
   { to: "/admin/materials/guides", icon: "📖", title: uz.admin.guidesManagement },
   { to: "/admin/materials/certificates", icon: "🎓", title: uz.admin.certificatesManagement },
+  { to: "/admin/certificate-tests", icon: "🔑", title: uz.admin.certificateTestManagement },
 ];
 
 export function AdminHomeScreen() {

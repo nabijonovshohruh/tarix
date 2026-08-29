@@ -230,3 +230,111 @@ export interface BulkUploadResult {
   inserted: number;
   skipped: { row: number; reason: string }[];
 }
+
+// National Certificate ("Milliy Sertifikat") interactive test: 45 questions
+// across three types (Q1-32 MCQ, Q33-35 matching A-F, Q36-45 open a/b),
+// accessed by a short teacher-shared code rather than browsing — see
+// backend/prisma/schema.prisma's CertificateTest family and
+// certificates.controller.ts's code-access flow.
+export type CertQuestionType = "MCQ" | "MATCHING" | "OPEN";
+export type CertGrade = "NONE" | "C" | "C_PLUS" | "B" | "B_PLUS" | "A" | "A_PLUS";
+// Matching questions (Q33-35) offer 6 options (A-F), unlike MCQ's 4 (A-D) —
+// deliberately distinct from CorrectOption, mirroring the backend's
+// certificateScoring.service.ts MatchOption type.
+export type MatchOption = "A" | "B" | "C" | "D" | "E" | "F";
+
+export interface CertMatchItem {
+  label: string;
+  // Present only in the admin's full question view — never sent to a
+  // student (see toAnswerSheetQuestion on the backend).
+  correctOption?: MatchOption;
+}
+
+// Full admin-facing question shape (answer keys included).
+export interface CertificateQuestion {
+  id: string;
+  testId?: string;
+  type: CertQuestionType;
+  order: number;
+  questionText: string;
+  optionA?: string | null;
+  optionB?: string | null;
+  optionC?: string | null;
+  optionD?: string | null;
+  correctOption?: CorrectOption | null;
+  matchItems?: CertMatchItem[] | null;
+  openLabelA?: string | null;
+  openAnswerA?: string | null;
+  openLabelB?: string | null;
+  openAnswerB?: string | null;
+  explanation?: string | null;
+  maxPoints?: number;
+}
+
+export interface CertificateTest {
+  id: string;
+  title: string;
+  testCode: string;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+  questions?: CertificateQuestion[];
+  _count?: { questions: number };
+}
+
+// The pure "digital answer sheet" shape returned by the test-code access
+// endpoint — no question text, no MCQ option text, no answer keys, just
+// enough structure to render the right input per question.
+export interface CertAnswerSheetQuestion {
+  id: string;
+  order: number;
+  type: CertQuestionType;
+  matchItems?: { label: string }[];
+  openLabelA?: string | null;
+  openLabelB?: string | null;
+}
+
+export interface CertAnswerSheetTest {
+  id: string;
+  title: string;
+  questions: CertAnswerSheetQuestion[];
+}
+
+export interface CertSelectedMatch {
+  label: string;
+  selectedOption: MatchOption;
+}
+
+export interface CertSubmittedAnswer {
+  questionId: string;
+  selectedOption?: CorrectOption;
+  selectedMatches?: CertSelectedMatch[];
+  answerA?: string;
+  answerB?: string;
+}
+
+export interface CertGradeSummary {
+  rawScore: number;
+  maxPossible: number;
+  percentage: number;
+  correctQuestions: number;
+  totalQuestions: number;
+  logit: number;
+  scaledScore: number;
+  certGrade: CertGrade;
+}
+
+export interface CertificateResult {
+  id: string;
+  studentId: string;
+  student?: Student;
+  testId: string;
+  test?: CertificateTest;
+  rawScore: number;
+  maxPossible: number;
+  percentage: number;
+  logit: number;
+  scaledScore: number;
+  grade: CertGrade;
+  createdAt: string;
+}
