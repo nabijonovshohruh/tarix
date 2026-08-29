@@ -5,9 +5,9 @@ import {
   CertificateResult,
   CertificateTest,
   CertGradeSummary,
-  CertMatchItem,
   CertSubmittedAnswer,
   CorrectOption,
+  MatchOption,
 } from "./types";
 
 export const listCertificateTests = () => get<{ tests: CertificateTest[] }>("/certificate-tests");
@@ -35,10 +35,12 @@ export type CertQuestionInput =
       correctOption: CorrectOption;
     }
   | {
+      // Q33-35: a single-answer question with 6 options (A-F), not a
+      // multi-pair matching table — see backend's MatchAnswerOption.
       type: "MATCHING";
       questionText: string;
       order?: number;
-      matchItems: Required<CertMatchItem>[];
+      matchAnswer: MatchOption;
     }
   | {
       type: "OPEN";

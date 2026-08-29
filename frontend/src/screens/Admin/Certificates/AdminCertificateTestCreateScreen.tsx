@@ -10,7 +10,6 @@ import { CertificateTest, CorrectOption, MatchOption } from "../../../api/types"
 
 const MCQ_COUNT = 32;
 const MATCHING_COUNT = 3;
-const MATCHING_ITEMS_PER_QUESTION = 6;
 const OPEN_COUNT = 10;
 
 const mcqOptionKeys: CorrectOption[] = ["A", "B", "C", "D"];
@@ -49,9 +48,7 @@ export function AdminCertificateTestCreateScreen() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [mcqAnswers, setMcqAnswers] = useState<CorrectOption[]>(Array(MCQ_COUNT).fill("A"));
-  const [matchingAnswers, setMatchingAnswers] = useState<MatchOption[][]>(
-    Array.from({ length: MATCHING_COUNT }, () => Array(MATCHING_ITEMS_PER_QUESTION).fill("A"))
-  );
+  const [matchingAnswers, setMatchingAnswers] = useState<MatchOption[]>(Array(MATCHING_COUNT).fill("A"));
   const [openAnswers, setOpenAnswers] = useState<{ a: string; b: string }[]>(
     Array.from({ length: OPEN_COUNT }, () => ({ a: "", b: "" }))
   );
@@ -96,10 +93,7 @@ export function AdminCertificateTestCreateScreen() {
           type: "MATCHING",
           questionText: `${MCQ_COUNT + 1 + i}-savol`,
           order: MCQ_COUNT + 1 + i,
-          matchItems: matchingAnswers[i].map((correctOption, idx) => ({
-            label: String(idx + 1),
-            correctOption,
-          })),
+          matchAnswer: matchingAnswers[i],
         });
         setProgress((p) => p + 1);
       }
@@ -206,29 +200,22 @@ export function AdminCertificateTestCreateScreen() {
           </div>
         </Card>
 
-        <Card className="space-y-4">
+        <Card className="space-y-2">
           <p className="text-sm font-semibold">{uz.admin.matchingSection}</p>
-          {matchingAnswers.map((items, qIdx) => (
-            <div key={qIdx} className="space-y-2">
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {MCQ_COUNT + 1 + qIdx}-savol
-              </p>
-              {items.map((val, itemIdx) => (
-                <div key={itemIdx} className="flex items-center gap-2">
-                  <span className="w-8 shrink-0 text-sm text-slate-500 dark:text-slate-400">{itemIdx + 1}.</span>
-                  <AnswerToggle
-                    options={matchingOptionKeys}
-                    value={val}
-                    onChange={(v) =>
-                      setMatchingAnswers((prev) =>
-                        prev.map((row, qi) => (qi === qIdx ? row.map((p, ii) => (ii === itemIdx ? v : p)) : row))
-                      )
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-          ))}
+          <div className="space-y-2">
+            {matchingAnswers.map((val, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="w-8 shrink-0 text-sm text-slate-500 dark:text-slate-400">
+                  {MCQ_COUNT + 1 + i}.
+                </span>
+                <AnswerToggle
+                  options={matchingOptionKeys}
+                  value={val}
+                  onChange={(v) => setMatchingAnswers((prev) => prev.map((p, idx) => (idx === i ? v : p)))}
+                />
+              </div>
+            ))}
+          </div>
         </Card>
 
         <Card className="space-y-3">

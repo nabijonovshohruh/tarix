@@ -232,23 +232,17 @@ export interface BulkUploadResult {
 }
 
 // National Certificate ("Milliy Sertifikat") interactive test: 45 questions
-// across three types (Q1-32 MCQ, Q33-35 matching A-F, Q36-45 open a/b),
+// across three types (Q1-32 MCQ, Q33-35 single-answer A-F, Q36-45 open a/b),
 // accessed by a short teacher-shared code rather than browsing — see
 // backend/prisma/schema.prisma's CertificateTest family and
 // certificates.controller.ts's code-access flow.
 export type CertQuestionType = "MCQ" | "MATCHING" | "OPEN";
 export type CertGrade = "NONE" | "C" | "C_PLUS" | "B" | "B_PLUS" | "A" | "A_PLUS";
-// Matching questions (Q33-35) offer 6 options (A-F), unlike MCQ's 4 (A-D) —
-// deliberately distinct from CorrectOption, mirroring the backend's
-// certificateScoring.service.ts MatchOption type.
+// Q33-35 ("MATCHING") per the official exam format are single-answer
+// questions with 6 options (A-F), unlike MCQ's 4 (A-D) — deliberately
+// distinct from CorrectOption, mirroring the backend's Prisma
+// MatchAnswerOption enum.
 export type MatchOption = "A" | "B" | "C" | "D" | "E" | "F";
-
-export interface CertMatchItem {
-  label: string;
-  // Present only in the admin's full question view — never sent to a
-  // student (see toAnswerSheetQuestion on the backend).
-  correctOption?: MatchOption;
-}
 
 // Full admin-facing question shape (answer keys included).
 export interface CertificateQuestion {
@@ -262,7 +256,7 @@ export interface CertificateQuestion {
   optionC?: string | null;
   optionD?: string | null;
   correctOption?: CorrectOption | null;
-  matchItems?: CertMatchItem[] | null;
+  matchAnswer?: MatchOption | null;
   openLabelA?: string | null;
   openAnswerA?: string | null;
   openLabelB?: string | null;
@@ -283,13 +277,13 @@ export interface CertificateTest {
 }
 
 // The pure "digital answer sheet" shape returned by the test-code access
-// endpoint — no question text, no MCQ option text, no answer keys, just
-// enough structure to render the right input per question.
+// endpoint — no question text, no option text, no answer keys, just enough
+// structure to render the right input per question. MATCHING needs nothing
+// beyond the type discriminant (rendered like MCQ, just with A-F buttons).
 export interface CertAnswerSheetQuestion {
   id: string;
   order: number;
   type: CertQuestionType;
-  matchItems?: { label: string }[];
   openLabelA?: string | null;
   openLabelB?: string | null;
 }
@@ -300,15 +294,10 @@ export interface CertAnswerSheetTest {
   questions: CertAnswerSheetQuestion[];
 }
 
-export interface CertSelectedMatch {
-  label: string;
-  selectedOption: MatchOption;
-}
-
 export interface CertSubmittedAnswer {
   questionId: string;
   selectedOption?: CorrectOption;
-  selectedMatches?: CertSelectedMatch[];
+  selectedMatchAnswer?: MatchOption;
   answerA?: string;
   answerB?: string;
 }

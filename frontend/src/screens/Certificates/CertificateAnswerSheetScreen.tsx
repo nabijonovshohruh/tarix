@@ -21,7 +21,7 @@ export function CertificateAnswerSheetScreen() {
   const { test } = (location.state as LocationState) ?? {};
 
   const [mcqAnswers, setMcqAnswers] = useState<Record<string, CorrectOption>>({});
-  const [matchingAnswers, setMatchingAnswers] = useState<Record<string, Record<string, MatchOption>>>({});
+  const [matchingAnswers, setMatchingAnswers] = useState<Record<string, MatchOption>>({});
   const [openAnswers, setOpenAnswers] = useState<Record<string, { a?: string; b?: string }>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,10 +36,7 @@ export function CertificateAnswerSheetScreen() {
 
   const isAnswered = (q: CertAnswerSheetTest["questions"][number]) => {
     if (q.type === "MCQ") return Boolean(mcqAnswers[q.id]);
-    if (q.type === "MATCHING") {
-      const chosen = matchingAnswers[q.id] ?? {};
-      return (q.matchItems ?? []).every((item) => Boolean(chosen[item.label]));
-    }
+    if (q.type === "MATCHING") return Boolean(matchingAnswers[q.id]);
     const answer = openAnswers[q.id];
     const hasA = Boolean(answer?.a?.trim());
     const hasB = q.openLabelB ? Boolean(answer?.b?.trim()) : true;
@@ -60,16 +57,7 @@ export function CertificateAnswerSheetScreen() {
     try {
       const answers: CertSubmittedAnswer[] = test.questions.map((q) => {
         if (q.type === "MCQ") return { questionId: q.id, selectedOption: mcqAnswers[q.id] };
-        if (q.type === "MATCHING") {
-          const chosen = matchingAnswers[q.id] ?? {};
-          return {
-            questionId: q.id,
-            selectedMatches: Object.entries(chosen).map(([label, selectedOption]) => ({
-              label,
-              selectedOption,
-            })),
-          };
-        }
+        if (q.type === "MATCHING") return { questionId: q.id, selectedMatchAnswer: matchingAnswers[q.id] };
         const answer = openAnswers[q.id];
         return { questionId: q.id, answerA: answer?.a, answerB: answer?.b };
       });
@@ -120,30 +108,20 @@ export function CertificateAnswerSheetScreen() {
             )}
 
             {q.type === "MATCHING" && (
-              <div className="space-y-2">
-                {(q.matchItems ?? []).map((item) => (
-                  <div key={item.label} className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-medium">{item.label}</span>
-                    <select
-                      value={matchingAnswers[q.id]?.[item.label] ?? ""}
-                      onChange={(e) =>
-                        setMatchingAnswers((prev) => ({
-                          ...prev,
-                          [q.id]: { ...prev[q.id], [item.label]: e.target.value as MatchOption },
-                        }))
-                      }
-                      className="rounded-lg border border-slate-200 bg-transparent px-3 py-2 text-sm dark:border-slate-700"
-                    >
-                      <option value="" disabled>
-                        {uz.certificateTest.selectOption}
-                      </option>
-                      {matchingOptionKeys.map((key) => (
-                        <option key={key} value={key}>
-                          {key}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+              <div className="flex gap-2">
+                {matchingOptionKeys.map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setMatchingAnswers((prev) => ({ ...prev, [q.id]: key }))}
+                    className={`flex-1 rounded-xl border py-3 text-center text-base font-semibold transition ${
+                      matchingAnswers[q.id] === key
+                        ? "border-brand-500 bg-brand-50 dark:bg-brand-900/30"
+                        : "border-slate-200 hover:border-brand-300 dark:border-slate-800 dark:hover:border-brand-700"
+                    }`}
+                  >
+                    {key}
+                  </button>
                 ))}
               </div>
             )}

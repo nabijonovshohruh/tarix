@@ -1,33 +1,5 @@
-import { CertGrade, CertQuestionType, CorrectOption, Prisma } from "@prisma/client";
+import { CertGrade, CertQuestionType, CorrectOption, MatchAnswerOption } from "@prisma/client";
 import { isFuzzyTextMatch } from "../utils/textMatch";
-
-// Matching questions (Q33-35) offer 6 options (A-F), unlike MCQ's 4 (A-D) —
-// deliberately a distinct type from the Prisma CorrectOption enum, not a
-// reuse of it. matchItems is stored as a plain Json blob (see schema.prisma),
-// so this is a TypeScript/Zod-level constraint only, not a DB column type.
-export const MATCH_OPTIONS = ["A", "B", "C", "D", "E", "F"] as const;
-export type MatchOption = (typeof MATCH_OPTIONS)[number];
-
-export interface MatchItem {
-  label: string;
-  correctOption: MatchOption;
-}
-
-export interface SelectedMatch {
-  label: string;
-  selectedOption: MatchOption;
-}
-
-/** Parses CertificateQuestion.matchItems (stored as Json) back into typed pairs. */
-export function parseMatchItems(value: Prisma.JsonValue | null): MatchItem[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter((item): item is Record<string, Prisma.JsonValue> => typeof item === "object" && item !== null)
-    .map((item) => ({
-      label: String(item.label ?? ""),
-      correctOption: item.correctOption as MatchOption,
-    }));
-}
 
 export interface GradableCertQuestion {
   id: bigint;
@@ -39,7 +11,7 @@ export interface GradableCertQuestion {
   optionC: string | null;
   optionD: string | null;
   correctOption: CorrectOption | null;
-  matchItems: Prisma.JsonValue | null;
+  matchAnswer: MatchAnswerOption | null;
   openLabelA: string | null;
   openAnswerA: string | null;
   openLabelB: string | null;
@@ -50,7 +22,7 @@ export interface GradableCertQuestion {
 export interface SubmittedCertAnswer {
   questionId: string;
   selectedOption?: CorrectOption | null;
-  selectedMatches?: SelectedMatch[] | null;
+  selectedMatchAnswer?: MatchAnswerOption | null;
   answerA?: string | null;
   answerB?: string | null;
 }
@@ -66,8 +38,8 @@ export interface CertAnswerSnapshot {
   optionD: string | null;
   correctOption: CorrectOption | null;
   selectedOption: CorrectOption | null;
-  matchItems: Prisma.JsonValue | null;
-  selectedMatches: Prisma.JsonValue | null;
+  matchAnswer: MatchAnswerOption | null;
+  selectedMatchAnswer: MatchAnswerOption | null;
   openLabelA: string | null;
   openAnswerA: string | null;
   studentAnswerA: string | null;
@@ -83,15 +55,13 @@ export interface CertAnswerSnapshot {
 /**
  * Grades a single question against the student's submitted answer, branching
  * on question type:
- *  - MCQ: exact option match, worth 1 point.
- *  - MATCHING: each label/option pair is graded independently, worth 1 point
- *    per correct pair (matchItems.length total) — partial credit is allowed.
+ *  - MCQ: exact option match (A-D), worth 1 point.
+ *  - MATCHING (Q33-35, per the official exam format): exact option match
+ *    from a wider 6-option set (A-F) — a single-answer question, not a
+ *    multi-pair matching table, so it's graded identically to MCQ.
  *  - OPEN: each populated sub-answer (a and/or b) is worth 1 point, checked
  *    with 1-edit-distance fuzzy matching (see textMatch.ts) rather than
  *    exact string equality, per the Q36-45 tolerant-grading requirement.
- * `isCorrect` means every sub-part of the question was correct (all matches,
- * or all populated open sub-answers) — used for question-count summaries;
- * the actual score always uses the finer-grained pointsEarned/maxPoints.
  */
 export function gradeCertQuestion(
   question: GradableCertQuestion,
@@ -116,8 +86,8 @@ export function gradeCertQuestion(
       ...base,
       correctOption: question.correctOption,
       selectedOption,
-      matchItems: null,
-      selectedMatches: null,
+      matchAnswer: null,
+      selectedMatchAnswer: null,
       openLabelA: null,
       openAnswerA: null,
       studentAnswerA: null,
@@ -131,30 +101,23 @@ export function gradeCertQuestion(
   }
 
   if (question.type === "MATCHING") {
-    const items = parseMatchItems(question.matchItems);
-    const selectedByLabel = new Map(
-      (answer?.selectedMatches ?? []).map((m) => [m.label, m.selectedOption])
-    );
-    let pointsEarned = 0;
-    for (const item of items) {
-      if (selectedByLabel.get(item.label) === item.correctOption) pointsEarned += 1;
-    }
-    const maxPoints = items.length;
+    const selectedMatchAnswer = answer?.selectedMatchAnswer ?? null;
+    const isCorrect = selectedMatchAnswer !== null && selectedMatchAnswer === question.matchAnswer;
     return {
       ...base,
       correctOption: null,
       selectedOption: null,
-      matchItems: question.matchItems,
-      selectedMatches: (answer?.selectedMatches ?? null) as unknown as Prisma.JsonValue | null,
+      matchAnswer: question.matchAnswer,
+      selectedMatchAnswer,
       openLabelA: null,
       openAnswerA: null,
       studentAnswerA: null,
       openLabelB: null,
       openAnswerB: null,
       studentAnswerB: null,
-      pointsEarned,
-      maxPoints,
-      isCorrect: maxPoints > 0 && pointsEarned === maxPoints,
+      pointsEarned: isCorrect ? 1 : 0,
+      maxPoints: 1,
+      isCorrect,
     };
   }
 
@@ -174,8 +137,8 @@ export function gradeCertQuestion(
     ...base,
     correctOption: null,
     selectedOption: null,
-    matchItems: null,
-    selectedMatches: null,
+    matchAnswer: null,
+    selectedMatchAnswer: null,
     openLabelA: question.openLabelA,
     openAnswerA: question.openAnswerA,
     studentAnswerA,

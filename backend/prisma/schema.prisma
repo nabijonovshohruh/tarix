@@ -53,6 +53,22 @@ enum CertQuestionType {
   OPEN
 }
 
+// Q33-35's "matching" section, per the official exam format, is actually 3
+// independent single-answer questions with 6 options each (A-F) — not a
+// multi-pair matching table. A dedicated enum (rather than reusing
+// CorrectOption) because CorrectOption is the shared 4-option (A-D) type
+// used everywhere else in the app (Test/Exam MCQ, CertificateQuestion MCQ);
+// widening it to 6 values would let those unrelated MCQ columns accept E/F
+// too, which the app never intends.
+enum MatchAnswerOption {
+  A
+  B
+  C
+  D
+  E
+  F
+}
+
 // No numeric/symbol identifiers allowed in Prisma enums, hence C_PLUS etc.
 // NONE means the scaled score fell below the C threshold (46) — no
 // certificate grade is awarded.
@@ -399,11 +415,10 @@ model CertificateTest {
 // One row per question regardless of type; only the fields relevant to
 // `type` are populated (enforced in certificates.controller.ts, Prisma has
 // no native discriminated-union column support — same pattern as
-// Material.subSection). matchItems is `[{ label, correctOption }]` — pair
-// count is admin-defined per question, not fixed at 6. maxPoints is
-// precomputed at write time (1 for MCQ, matchItems.length for MATCHING, 1 or
-// 2 for OPEN depending on whether sub-answer B is used) so the scoring
-// service never has to re-derive "how many points is this worth" from type.
+// Material.subSection). maxPoints is precomputed at write time (1 for MCQ,
+// 1 for MATCHING, 1 or 2 for OPEN depending on whether sub-answer B is used)
+// so the scoring service never has to re-derive "how many points is this
+// worth" from type.
 model CertificateQuestion {
   id     BigInt          @id @default(autoincrement())
   testId BigInt
@@ -420,8 +435,9 @@ model CertificateQuestion {
   optionD       String?
   correctOption CorrectOption?
 
-  // MATCHING only
-  matchItems Json?
+  // MATCHING only — a single-answer, 6-option (A-F) question, same shape as
+  // MCQ but with a wider option set (see MatchAnswerOption's doc comment).
+  matchAnswer MatchAnswerOption?
 
   // OPEN only — openLabelB/openAnswerB stay null for a single-part open
   // question (Q36-45 normally use both a and b).
@@ -468,10 +484,9 @@ model CertificateResult {
 // Denormalized per-question snapshot, same rationale as TestAnswer/
 // ExamAnswer above (questionId is an unenforced reference so editing/
 // deleting a live question never corrupts historical review data).
-// selectedMatches mirrors matchItems' shape but with the student's chosen
-// CorrectOption per label; studentAnswerA/B hold the student's raw
-// (unnormalized) open-ended text as typed, separate from the openAnswerA/B
-// key snapshot, so the review screen can show "you wrote X, key was Y".
+// studentAnswerA/B hold the student's raw (unnormalized) open-ended text as
+// typed, separate from the openAnswerA/B key snapshot, so the review screen
+// can show "you wrote X, key was Y".
 model CertificateAnswer {
   id         BigInt            @id @default(autoincrement())
   resultId   BigInt
@@ -489,8 +504,8 @@ model CertificateAnswer {
   correctOption  CorrectOption?
   selectedOption CorrectOption?
 
-  matchItems      Json?
-  selectedMatches Json?
+  matchAnswer         MatchAnswerOption?
+  selectedMatchAnswer MatchAnswerOption?
 
   openLabelA     String?
   openAnswerA    String?

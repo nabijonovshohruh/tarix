@@ -1,16 +1,10 @@
 import { Request, Response } from "express";
 import { z } from "zod";
-import { CertificateQuestion, CertQuestionType, CorrectOption, Prisma } from "@prisma/client";
+import { CertQuestionType, CorrectOption, MatchAnswerOption } from "@prisma/client";
 import { env } from "../config/env";
 import { prisma } from "../db/prisma";
 import { HttpError } from "../middleware/errorHandler";
-import {
-  computeRaschProxyScore,
-  gradeCertSubmission,
-  MATCH_OPTIONS,
-  parseMatchItems,
-  SubmittedCertAnswer,
-} from "../services/certificateScoring.service";
+import { computeRaschProxyScore, gradeCertSubmission, SubmittedCertAnswer } from "../services/certificateScoring.service";
 import { generateTestCode } from "../utils/testCode";
 
 const testInputSchema = z.object({
@@ -22,15 +16,10 @@ const testUpdateSchema = z.object({
   isPublished: z.boolean().optional(),
 });
 
-const matchItemSchema = z.object({
-  label: z.string().min(1),
-  correctOption: z.enum(MATCH_OPTIONS),
-});
-
 // A discriminated union (rather than one flat optional-everything schema)
-// so a MATCHING question can't be saved missing matchItems, an OPEN question
-// can't be saved missing openAnswerA, etc. — Zod validates the combination,
-// not just each field in isolation.
+// so a MATCHING question can't be saved missing matchAnswer, an OPEN
+// question can't be saved missing openAnswerA, etc. — Zod validates the
+// combination, not just each field in isolation.
 const questionInputSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("MCQ"),
@@ -44,11 +33,13 @@ const questionInputSchema = z.discriminatedUnion("type", [
     correctOption: z.nativeEnum(CorrectOption),
   }),
   z.object({
+    // Q33-35 per the official exam format: a single-answer question with 6
+    // options (A-F), not a multi-pair matching table.
     type: z.literal("MATCHING"),
     questionText: z.string().min(1),
     order: z.number().int().optional(),
     explanation: z.string().optional(),
-    matchItems: z.array(matchItemSchema).min(2),
+    matchAnswer: z.nativeEnum(MatchAnswerOption),
   }),
   z.object({
     type: z.literal("OPEN"),
@@ -87,8 +78,8 @@ function toQuestionData(body: QuestionInput) {
   if (body.type === "MATCHING") {
     return {
       ...shared,
-      matchItems: body.matchItems,
-      maxPoints: body.matchItems.length,
+      matchAnswer: body.matchAnswer,
+      maxPoints: 1,
     };
   }
 
@@ -112,9 +103,7 @@ const submitSchema = z.object({
     z.object({
       questionId: z.string(),
       selectedOption: z.nativeEnum(CorrectOption).optional(),
-      selectedMatches: z
-        .array(z.object({ label: z.string(), selectedOption: z.enum(MATCH_OPTIONS) }))
-        .optional(),
+      selectedMatchAnswer: z.nativeEnum(MatchAnswerOption).optional(),
       answerA: z.string().optional(),
       answerB: z.string().optional(),
     })
@@ -124,13 +113,18 @@ const submitSchema = z.object({
 // The Mini App is a pure digital answer sheet — the questions themselves are
 // distributed separately (printed/PDF), so a student never needs
 // questionText, explanation, or MCQ option text, just enough structure to
-// render the right input per question: A-D buttons (MCQ), an A-F dropdown
-// per matched item (MATCHING), or one/two text fields (OPEN).
-function toAnswerSheetQuestion(q: CertificateQuestion) {
+// render the right input per question: A-D buttons (MCQ), A-F buttons
+// (MATCHING), or one/two text fields (OPEN). MATCHING needs no extra data
+// beyond the type discriminant — it's rendered exactly like MCQ, just with
+// two more option buttons.
+function toAnswerSheetQuestion(q: {
+  id: bigint;
+  order: number;
+  type: CertQuestionType;
+  openLabelA: string | null;
+  openLabelB: string | null;
+}) {
   const base = { id: q.id.toString(), order: q.order, type: q.type };
-  if (q.type === "MATCHING") {
-    return { ...base, matchItems: parseMatchItems(q.matchItems).map((item) => ({ label: item.label })) };
-  }
   if (q.type === "OPEN") {
     return { ...base, openLabelA: q.openLabelA, openLabelB: q.openLabelB };
   }
@@ -273,12 +267,7 @@ export async function submitCertificateTest(req: Request, res: Response) {
       },
     });
     await tx.certificateAnswer.createMany({
-      data: summary.snapshots.map((s) => ({
-        ...s,
-        resultId: result.id,
-        matchItems: s.matchItems ?? Prisma.DbNull,
-        selectedMatches: s.selectedMatches ?? Prisma.DbNull,
-      })),
+      data: summary.snapshots.map((s) => ({ ...s, resultId: result.id })),
     });
     return result;
   });
