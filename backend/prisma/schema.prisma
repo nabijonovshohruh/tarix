@@ -47,6 +47,25 @@ enum ExamStatus {
   FAILED
 }
 
+enum CertQuestionType {
+  MCQ
+  MATCHING
+  OPEN
+}
+
+// No numeric/symbol identifiers allowed in Prisma enums, hence C_PLUS etc.
+// NONE means the scaled score fell below the C threshold (46) — no
+// certificate grade is awarded.
+enum CertGrade {
+  NONE
+  C
+  C_PLUS
+  B
+  B_PLUS
+  A
+  A_PLUS
+}
+
 enum Role {
   GUEST
   STUDENT
@@ -107,9 +126,10 @@ model Student {
   // path (see bot/bot.ts's creditReferralIfNeeded).
   referralCredited  Boolean  @default(false)
 
-  testResults       TestResult[]
-  attendanceRecords AttendanceRecord[]
-  examResults       ExamResult[]
+  testResults        TestResult[]
+  attendanceRecords  AttendanceRecord[]
+  examResults        ExamResult[]
+  certificateResults CertificateResult[]
 
   @@index([referredById])
 }
@@ -351,4 +371,132 @@ model Material {
 
   @@index([section])
   @@index([subSection])
+}
+
+// The 45-question "Milliy Sertifikat" (National Certificate) format: Q1-32
+// MCQ, Q33-35 matching, Q36-45 open-ended with a/b sub-answers. Deliberately
+// a separate model family from Test/Exam rather than bolted onto them —
+// those two are pure single-type-A-D MCQ end to end (grading, snapshots,
+// review UI), and mixing in matching/open-ended there would mean every
+// existing MCQ code path has to branch on a type it never actually sees.
+model CertificateTest {
+  id          BigInt   @id @default(autoincrement())
+  title       String
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  questions CertificateQuestion[]
+  results   CertificateResult[]
+}
+
+// One row per question regardless of type; only the fields relevant to
+// `type` are populated (enforced in certificates.controller.ts, Prisma has
+// no native discriminated-union column support — same pattern as
+// Material.subSection). matchItems is `[{ label, correctOption }]` — pair
+// count is admin-defined per question, not fixed at 6. maxPoints is
+// precomputed at write time (1 for MCQ, matchItems.length for MATCHING, 1 or
+// 2 for OPEN depending on whether sub-answer B is used) so the scoring
+// service never has to re-derive "how many points is this worth" from type.
+model CertificateQuestion {
+  id     BigInt          @id @default(autoincrement())
+  testId BigInt
+  test   CertificateTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  type         CertQuestionType
+  order        Int              @default(0)
+  questionText String
+
+  // MCQ only
+  optionA       String?
+  optionB       String?
+  optionC       String?
+  optionD       String?
+  correctOption CorrectOption?
+
+  // MATCHING only
+  matchItems Json?
+
+  // OPEN only — openLabelB/openAnswerB stay null for a single-part open
+  // question (Q36-45 normally use both a and b).
+  openLabelA  String?
+  openAnswerA String?
+  openLabelB  String?
+  openAnswerB String?
+
+  explanation String?
+  maxPoints   Float   @default(1)
+
+  @@index([testId])
+}
+
+// rawScore/maxPossible/percentage are the raw tally; logit/scaledScore/grade
+// are the simplified Rasch-style proxy (see certificateScoring.service.ts):
+// percentage -> logit via the standard logistic-odds transform, then
+// scaledScore = 50 + 10*logit (a mean-50/SD-10 T-score rescale), clamped to
+// [0,100] and banded into `grade` per the fixed cutoff table. This is a
+// placeholder curve, not a psychometrically calibrated 1PL Rasch fit (no
+// per-item difficulty calibration data exists yet) — swap the transform in
+// one place if/when real item-difficulty calibration becomes available.
+model CertificateResult {
+  id        BigInt          @id @default(autoincrement())
+  studentId BigInt
+  student   Student         @relation(fields: [studentId], references: [id])
+  testId    BigInt
+  test      CertificateTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  rawScore    Float
+  maxPossible Float
+  percentage  Float
+  logit       Float
+  scaledScore Float
+  grade       CertGrade
+  createdAt   DateTime  @default(now())
+
+  answers CertificateAnswer[]
+
+  @@index([studentId])
+  @@index([testId])
+}
+
+// Denormalized per-question snapshot, same rationale as TestAnswer/
+// ExamAnswer above (questionId is an unenforced reference so editing/
+// deleting a live question never corrupts historical review data).
+// selectedMatches mirrors matchItems' shape but with the student's chosen
+// CorrectOption per label; studentAnswerA/B hold the student's raw
+// (unnormalized) open-ended text as typed, separate from the openAnswerA/B
+// key snapshot, so the review screen can show "you wrote X, key was Y".
+model CertificateAnswer {
+  id         BigInt            @id @default(autoincrement())
+  resultId   BigInt
+  result     CertificateResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  questionId BigInt?
+  order      Int
+  type       CertQuestionType
+
+  questionText String
+
+  optionA        String?
+  optionB        String?
+  optionC        String?
+  optionD        String?
+  correctOption  CorrectOption?
+  selectedOption CorrectOption?
+
+  matchItems      Json?
+  selectedMatches Json?
+
+  openLabelA     String?
+  openAnswerA    String?
+  studentAnswerA String?
+  openLabelB     String?
+  openAnswerB    String?
+  studentAnswerB String?
+
+  explanation  String?
+  pointsEarned Float
+  maxPoints    Float
+  isCorrect    Boolean
+
+  @@index([resultId])
 }
