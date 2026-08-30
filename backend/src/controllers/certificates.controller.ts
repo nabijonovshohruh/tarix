@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { z } from "zod";
+import { InputFile } from "grammy";
 import { CertQuestionType, CorrectOption, MatchAnswerOption } from "@prisma/client";
 import { bot } from "../bot/bot";
 import { env } from "../config/env";
@@ -7,6 +8,7 @@ import { prisma } from "../db/prisma";
 import { HttpError } from "../middleware/errorHandler";
 import { gradeCertSubmission, SubmittedCertAnswer } from "../services/certificateScoring.service";
 import { calibrateCertificateTest } from "../services/raschCalibration.service";
+import { assignCertificateNumbers, buildCertificatePdfData, renderCertificatePdf } from "../services/certificatePdf.service";
 import { generateTestCode } from "../utils/testCode";
 
 const testInputSchema = z.object({
@@ -315,6 +317,7 @@ export async function calibrateAndReleaseCertificateResults(req: Request, res: R
   if (!test) throw new HttpError(404, "test not found");
 
   const summary = await calibrateCertificateTest(testId);
+  await assignCertificateNumbers(testId);
 
   const results = await prisma.certificateResult.findMany({
     where: { testId },
@@ -351,4 +354,34 @@ export async function getMyCertificateResults(req: Request, res: Response) {
     orderBy: { createdAt: "desc" },
   });
   res.json({ results });
+}
+
+/**
+ * Renders the certificate PDF fresh on every call (no file storage — same
+ * "never persist files ourselves" pattern as Material, see
+ * materialFile.service.ts) and delivers it into the student's own Telegram
+ * chat, mirroring how material downloads work. buildCertificatePdfData
+ * already enforces "released" + "passing grade" + "certificate number
+ * assigned" — this only adds the ownership check.
+ */
+export async function deliverCertificatePdf(req: Request, res: Response) {
+  const resultId = BigInt(req.params.resultId);
+  const result = await prisma.certificateResult.findUnique({ where: { id: resultId } });
+  if (!result) throw new HttpError(404, "result not found");
+  if (result.studentId !== req.user!.id) throw new HttpError(403, "forbidden");
+
+  const data = await buildCertificatePdfData(resultId);
+  const pdfBuffer = await renderCertificatePdf(data);
+
+  try {
+    await bot.api.sendDocument(
+      Number(req.user!.telegramId),
+      new InputFile(pdfBuffer, `${data.certificateNumber}.pdf`)
+    );
+  } catch (err) {
+    console.error("Failed to deliver certificate PDF via the bot:", err);
+    throw new HttpError(502, "Sertifikatni yuborib bo'lmadi. Botga /start yozganingizni tekshiring va qayta urinib ko'ring.");
+  }
+
+  res.json({ delivered: true });
 }

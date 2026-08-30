@@ -16,6 +16,7 @@ import {
   getMyCertificateResults,
   getCertificateResultReview,
   calibrateAndReleaseCertificateResults,
+  deliverCertificatePdf,
 } from "../controllers/certificates.controller";
 
 export const certificatesRouter = Router();
@@ -28,6 +29,11 @@ certificatesRouter.get(
 certificatesRouter.get(
   "/certificate-results/:resultId/review",
   asyncHandler(getCertificateResultReview)
+);
+certificatesRouter.post(
+  "/certificate-results/:resultId/certificate",
+  requireRole("student"),
+  asyncHandler(deliverCertificatePdf)
 );
 
 // Students never browse or open a test by id — the only entry point is the

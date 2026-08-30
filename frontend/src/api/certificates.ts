@@ -77,3 +77,9 @@ export const getCertificateResults = (testId: string) =>
 
 export const calibrateCertificateResults = (testId: string) =>
   post<{ summary: CalibrationSummary }>(`/certificate-tests/${testId}/calibrate`);
+
+// No file ever crosses the HTTP response — the PDF is generated fresh and
+// delivered straight into the student's own Telegram chat by the bot, same
+// pattern as material downloads (see api/materials.ts's downloadMaterial).
+export const deliverCertificatePdf = (resultId: string) =>
+  post<{ delivered: boolean }>(`/certificate-results/${resultId}/certificate`);

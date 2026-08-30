@@ -148,6 +148,7 @@ export const uz = {
     pendingResult: "Natijalar hisoblanmoqda",
     pending: "Kutilmoqda",
     noResults: "Siz hali birorta sertifikat testini topshirmagansiz",
+    downloadPdf: "Sertifikatni yuklab olish (PDF)",
   },
   dashboard: {
     title: "Mening natijalarim",

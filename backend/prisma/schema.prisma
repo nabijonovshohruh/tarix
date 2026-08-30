@@ -482,6 +482,14 @@ model CertificateResult {
   grade       CertGrade?
   createdAt   DateTime   @default(now())
 
+  // Assigned once, at calibration time, only for passing results
+  // (scaledScore >= 46, i.e. grade != NONE) — see
+  // raschCalibration.service.ts's calibrateCertificateTest and
+  // certificatePdf.service.ts. Format "NS{YY} {6 digits}" (e.g.
+  // "NS26 846147"). Null for failing/ungraded results — a non-null value is
+  // what gates PDF generation and the public /verify/:certificateNumber page.
+  certificateNumber String? @unique
+
   answers CertificateAnswer[]
 
   @@index([studentId])

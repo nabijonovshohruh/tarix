@@ -12,6 +12,8 @@ import { env } from "./config/env";
 import { errorHandler } from "./middleware/errorHandler";
 import { apiRouter } from "./routes";
 import { createBotWebhookHandler } from "./bot/webhook";
+import { verifyCertificate } from "./controllers/verify.controller";
+import { asyncHandler } from "./utils/asyncHandler";
 
 export const app = express();
 
@@ -36,6 +38,13 @@ if (!env.isProduction && env.FRONTEND_ORIGIN) {
 app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
+
+// Public (unauthenticated) — the QR code on a certificate PDF must be
+// scannable by anyone (an employer, another school), not just Telegram
+// users, so this deliberately sits outside /api's telegramAuth middleware.
+// Must be registered before the production SPA catch-all below, or that
+// would swallow this path first.
+app.get("/verify/:certificateNumber", asyncHandler(verifyCertificate));
 
 if (env.isProduction && env.WEBHOOK_URL) {
   app.post("/bot/webhook", createBotWebhookHandler());
