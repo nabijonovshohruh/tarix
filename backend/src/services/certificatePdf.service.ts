@@ -4,6 +4,7 @@ import { CertGrade } from "@prisma/client";
 import { env } from "../config/env";
 import { prisma } from "../db/prisma";
 import { HttpError } from "../middleware/errorHandler";
+import { GRADE_BANDS } from "./certificateScoring.service";
 import { generateCertificateNumberCandidate } from "../utils/certificateNumber";
 
 const GOLD = "#a9812f";
@@ -64,6 +65,22 @@ export async function assignCertificateNumbers(testId: bigint): Promise<void> {
   }
 }
 
+/**
+ * The certificate's "percentage relative to overall score" field is a
+ * national-standard display value, not the raw test-correctness percentage
+ * (result.percentage) — it's derived from the calibrated scaledScore
+ * against the "A" grade threshold: A/A+ always show a flat 100%, anything
+ * below is the proportion of the way to that threshold. (Verified against
+ * the reference certificate: scaledScore 60.7 / A-threshold 65 * 100 =
+ * 93.38%, exactly matching its printed "93.38 %".)
+ */
+function computeCertificatePercentage(scaledScore: number, grade: CertGrade): number {
+  if (grade === "A" || grade === "A_PLUS") return 100;
+  const aThreshold = GRADE_BANDS.find((band) => band.grade === "A")!.min;
+  const raw = (scaledScore / aThreshold) * 100;
+  return Math.round(Math.min(100, raw) * 100) / 100;
+}
+
 function formatDate(d: Date): string {
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -104,7 +121,7 @@ export async function buildCertificatePdfData(resultId: bigint): Promise<Certifi
     otasiIsmi,
     subject: "Tarix (O'zbek)",
     scaledScore: result.scaledScore,
-    percentage: result.percentage,
+    percentage: computeCertificatePercentage(result.scaledScore, result.grade),
     grade: result.grade,
     issueDate,
     expiryDate,
@@ -112,46 +129,112 @@ export async function buildCertificatePdfData(resultId: bigint): Promise<Certifi
   };
 }
 
-/** A faint repeating diamond lattice across the page — a simplified stand-in for the original's woven geometric watermark, kept light enough not to compete with the text. */
-function drawLattice(doc: PDFKit.PDFDocument, width: number, height: number) {
-  const step = 32;
+/**
+ * One tile of the interlocking-star weave: a diamond (45°-rotated square)
+ * plus a smaller axis-aligned square sharing the same center, whose
+ * overlapping edges read as an 8-pointed star — the classic Islamic
+ * geometric motif this style of certificate border is built from — using
+ * only straight strokes, no curves or raster assets needed.
+ */
+function drawStarTile(doc: PDFKit.PDFDocument, cx: number, cy: number, r: number) {
+  doc
+    .moveTo(cx, cy - r)
+    .lineTo(cx + r, cy)
+    .lineTo(cx, cy + r)
+    .lineTo(cx - r, cy)
+    .closePath()
+    .stroke();
+  const s = r * 0.72;
+  doc
+    .moveTo(cx - s, cy - s)
+    .lineTo(cx + s, cy - s)
+    .lineTo(cx + s, cy + s)
+    .lineTo(cx - s, cy + s)
+    .closePath()
+    .stroke();
+}
+
+/**
+ * Tiles drawStarTile across a rectangular region in a diamond (offset-row)
+ * grid, with short connector strokes between neighboring tile centers so
+ * the pattern reads as one continuous woven lattice rather than isolated
+ * floating stars — this is what both the full-page watermark and the
+ * denser corner ornaments are built from, just at different step/opacity.
+ */
+function drawStarWeave(
+  doc: PDFKit.PDFDocument,
+  region: { x: number; y: number; width: number; height: number },
+  step: number,
+  opacity: number
+) {
   doc.save();
-  doc.opacity(0.11).strokeColor(GOLD).lineWidth(0.5);
-  for (let y = -step; y < height + step; y += step) {
-    for (let x = -step; x < width + step; x += step) {
-      const offset = (Math.round(y / step) % 2) * (step / 2);
-      const cx = x + offset;
+  doc.opacity(opacity).strokeColor(GOLD).lineWidth(0.5);
+  const half = step / 2;
+  const r = step * 0.36;
+  for (let y = region.y - step; y < region.y + region.height + step; y += half) {
+    const row = Math.round((y - region.y) / half);
+    const rowOffset = row % 2 === 0 ? 0 : half;
+    for (let x = region.x - step + rowOffset; x < region.x + region.width + step; x += step) {
+      drawStarTile(doc, x, y, r);
+      // Connectors to the tile directly right and directly below-right,
+      // in this offset grid — enough to visually link the whole weave
+      // without doubling every edge.
       doc
-        .moveTo(cx, y - step / 2)
-        .lineTo(cx + step / 2, y)
-        .lineTo(cx, y + step / 2)
-        .lineTo(cx - step / 2, y)
-        .closePath()
+        .moveTo(x + r, y)
+        .lineTo(x + step - r, y)
+        .stroke();
+      doc
+        .moveTo(x + half - r * 0.7, y + half - r * 0.7)
+        .lineTo(x + half + r * 0.7, y + half + r * 0.7)
         .stroke();
     }
   }
   doc.restore();
 }
 
-/** One corner's decorative flourish — concentric diamonds fanning out from the corner point, mirrored/rotated per corner via dx/dy sign. */
-function drawCornerFlourish(doc: PDFKit.PDFDocument, cornerX: number, cornerY: number, dx: 1 | -1, dy: 1 | -1) {
+/** The full-page background watermark — light enough to stay behind all text. */
+function drawPageWeave(doc: PDFKit.PDFDocument, width: number, height: number) {
+  drawStarWeave(doc, { x: 0, y: 0, width, height }, 34, 0.09);
+}
+
+/**
+ * A denser echo of the same weave, clipped to a right-triangle in one
+ * corner, mirrored per corner via dx/dy — this is the "heavier" decorative
+ * corner block seen on the reference certificate, built from the identical
+ * motif as the page-wide watermark rather than a separate one-off graphic.
+ */
+function drawCornerOrnament(doc: PDFKit.PDFDocument, cornerX: number, cornerY: number, dx: 1 | -1, dy: 1 | -1, size: number) {
   doc.save();
-  doc.opacity(0.55).strokeColor(GOLD).lineWidth(1);
-  for (let i = 1; i <= 5; i++) {
-    const size = i * 14;
-    doc
-      .moveTo(cornerX + dx * size, cornerY)
-      .lineTo(cornerX, cornerY + dy * size)
-      .stroke();
-  }
+  doc
+    .moveTo(cornerX, cornerY)
+    .lineTo(cornerX + dx * size, cornerY)
+    .lineTo(cornerX, cornerY + dy * size)
+    .closePath()
+    .clip();
+  const regionX = dx === 1 ? cornerX : cornerX - size;
+  const regionY = dy === 1 ? cornerY : cornerY - size;
+  drawStarWeave(doc, { x: regionX, y: regionY, width: size, height: size }, 20, 0.4);
   doc.restore();
 }
 
-/** A generic circular seal (monogram + star) — deliberately not the state emblem, since this is a private course certificate, not a government document. */
+/** A generic circular medallion seal (monogram + tick-mark rim) — deliberately not the state emblem, since this is a private course certificate, not a government document. */
 function drawSeal(doc: PDFKit.PDFDocument, cx: number, cy: number, radius: number) {
   doc.save();
   doc.lineWidth(1.5).strokeColor(GOLD).circle(cx, cy, radius).stroke();
-  doc.lineWidth(0.75).circle(cx, cy, radius - 5).stroke();
+  doc.lineWidth(0.75).circle(cx, cy, radius - 6).stroke();
+
+  // Tick marks around the rim, like a coin/medallion edge.
+  const tickCount = 24;
+  for (let i = 0; i < tickCount; i++) {
+    const angle = (i / tickCount) * Math.PI * 2;
+    const inner = radius - 2;
+    const outer = radius + 3;
+    doc
+      .moveTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner)
+      .lineTo(cx + Math.cos(angle) * outer, cy + Math.sin(angle) * outer)
+      .stroke();
+  }
+
   doc.font("Helvetica-Bold").fontSize(radius * 0.7).fillColor(GOLD).text("NS", cx - radius, cy - radius * 0.4, {
     width: radius * 2,
     align: "center",
@@ -177,7 +260,7 @@ export function renderCertificatePdf(data: CertificatePdfData): Promise<Buffer> 
         const contentWidth = contentRight - contentLeft;
 
         doc.rect(0, 0, pageWidth, pageHeight).fill(CREAM);
-        drawLattice(doc, pageWidth, pageHeight);
+        drawPageWeave(doc, pageWidth, pageHeight);
 
         doc
           .lineWidth(2.5)
@@ -190,10 +273,11 @@ export function renderCertificatePdf(data: CertificatePdfData): Promise<Buffer> 
           .rect(margin + 7, margin + 7, pageWidth - 2 * (margin + 7), pageHeight - 2 * (margin + 7))
           .stroke();
 
-        drawCornerFlourish(doc, margin + 4, margin + 4, 1, 1);
-        drawCornerFlourish(doc, pageWidth - margin - 4, margin + 4, -1, 1);
-        drawCornerFlourish(doc, margin + 4, pageHeight - margin - 4, 1, -1);
-        drawCornerFlourish(doc, pageWidth - margin - 4, pageHeight - margin - 4, -1, -1);
+        const cornerSize = 150;
+        drawCornerOrnament(doc, margin + 4, margin + 4, 1, 1, cornerSize);
+        drawCornerOrnament(doc, pageWidth - margin - 4, margin + 4, -1, 1, cornerSize);
+        drawCornerOrnament(doc, margin + 4, pageHeight - margin - 4, 1, -1, cornerSize);
+        drawCornerOrnament(doc, pageWidth - margin - 4, pageHeight - margin - 4, -1, -1, cornerSize);
 
         let y = margin + 26;
         drawSeal(doc, pageWidth / 2, y + 26, 26);
