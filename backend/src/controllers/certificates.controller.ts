@@ -146,7 +146,10 @@ async function generateUniqueTestCode(): Promise<string> {
 
 function buildAccessLink(code: string): string | null {
   if (!env.WEBAPP_URL) return null;
-  const url = new URL(env.WEBAPP_URL);
+  // Explicit path, not just WEBAPP_URL's own (typically "/") — otherwise
+  // the link opens the home screen with an unread query param instead of
+  // the code-entry screen that actually reads ?certCode=.
+  const url = new URL("/certificate-test", env.WEBAPP_URL);
   url.searchParams.set("certCode", code);
   return url.toString();
 }

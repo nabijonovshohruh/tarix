@@ -4,10 +4,8 @@ import { Card } from "../../components/common/Card";
 import { Badge } from "../../components/common/Badge";
 import { Button } from "../../components/common/Button";
 import { EmptyState } from "../../components/common/EmptyState";
-import { GuestLock } from "../../components/common/GuestLock";
 import { Spinner } from "../../components/common/Spinner";
 import { uz } from "../../i18n/uz";
-import { useAuth } from "../../context/AuthContext";
 import { deliverCertificatePdf, getMyCertificateResults } from "../../api/certificates";
 import { ApiError } from "../../api/client";
 import { CertificateResult } from "../../api/types";
@@ -15,25 +13,16 @@ import { certGradeLabels, certGradeTone } from "../../utils/certificateGrade";
 
 type DeliveryState = "idle" | "sending" | "sent" | "error";
 
+// Certificate Test is open to every bot user — no guest lock here (see
+// CertificateCodeEntryScreen.tsx's matching note).
 export function CertificateMyResultsScreen() {
-  const { isGuest } = useAuth();
   const [results, setResults] = useState<CertificateResult[] | null>(null);
   const [delivery, setDelivery] = useState<Record<string, DeliveryState>>({});
   const [deliveryError, setDeliveryError] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (isGuest) return;
     getMyCertificateResults().then(({ results }) => setResults(results));
-  }, [isGuest]);
-
-  if (isGuest) {
-    return (
-      <div>
-        <Header title={uz.certificateTest.myResults} showBack />
-        <GuestLock />
-      </div>
-    );
-  }
+  }, []);
 
   const handleDownload = async (resultId: string) => {
     setDelivery((prev) => ({ ...prev, [resultId]: "sending" }));

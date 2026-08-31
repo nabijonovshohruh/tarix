@@ -21,18 +21,16 @@ import {
 
 export const certificatesRouter = Router();
 
-certificatesRouter.get(
-  "/certificate-results/me",
-  requireRole("student"),
-  asyncHandler(getMyCertificateResults)
-);
+// No role requirement on any of these three — Certificate Test is open to
+// every bot user (guest included), not just promoted "student" accounts.
+// Ownership is still enforced inside the controllers via req.user!.id.
+certificatesRouter.get("/certificate-results/me", asyncHandler(getMyCertificateResults));
 certificatesRouter.get(
   "/certificate-results/:resultId/review",
   asyncHandler(getCertificateResultReview)
 );
 certificatesRouter.post(
   "/certificate-results/:resultId/certificate",
-  requireRole("student"),
   asyncHandler(deliverCertificatePdf)
 );
 
@@ -45,11 +43,7 @@ certificatesRouter.get(
   requireRole("admin"),
   asyncHandler(getCertificateTest)
 );
-certificatesRouter.post(
-  "/certificate-tests/access",
-  requireRole("student"),
-  asyncHandler(accessCertificateTestByCode)
-);
+certificatesRouter.post("/certificate-tests/access", asyncHandler(accessCertificateTestByCode));
 certificatesRouter.post(
   "/certificate-tests",
   requireRole("admin"),
@@ -82,11 +76,7 @@ certificatesRouter.delete(
   asyncHandler(deleteCertificateQuestion)
 );
 
-certificatesRouter.post(
-  "/certificate-tests/:id/submit",
-  requireRole("student"),
-  asyncHandler(submitCertificateTest)
-);
+certificatesRouter.post("/certificate-tests/:id/submit", asyncHandler(submitCertificateTest));
 certificatesRouter.get(
   "/certificate-tests/:id/results",
   requireRole("admin"),

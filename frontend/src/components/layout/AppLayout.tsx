@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { BottomNav } from "./BottomNav";
 import { DevIdentitySwitcher } from "../dev/DevIdentitySwitcher";
 import { Button } from "../common/Button";
@@ -8,8 +8,16 @@ import { uz } from "../../i18n/uz";
 
 export function AppLayout() {
   const { user, channelUrl, loading, isAdmin, recheckChannelSubscription } = useAuth();
+  const location = useLocation();
   const [checking, setChecking] = useState(false);
   const [stillLocked, setStillLocked] = useState(false);
+
+  // Certificate Test is open to every bot user, channel subscription
+  // included — the backend already lets these routes through regardless
+  // (see backend/src/routes/index.ts), but this screen-level lock is global
+  // and path-independent, so it needs its own exemption or it would block
+  // the section anyway before a single request is ever made.
+  const isCertificateTestRoute = location.pathname.startsWith("/certificate-test");
 
   const handleRecheck = async () => {
     setChecking(true);
@@ -24,7 +32,7 @@ export function AppLayout() {
 
   // Checked before registration — matches the bot-side gate order (channel
   // subscription is "step 0", independent of any DB registration state).
-  if (!loading && user && !isAdmin && !user.channelSubscribed) {
+  if (!loading && user && !isAdmin && !user.channelSubscribed && !isCertificateTestRoute) {
     return (
       <div className="mx-auto flex min-h-screen max-w-lg flex-col pb-16">
         <DevIdentitySwitcher />

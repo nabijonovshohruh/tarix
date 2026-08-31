@@ -26,17 +26,19 @@ if (env.allowDevAuth) {
 
 apiRouter.use("/auth", authRouter);
 
-// Everything below requires being subscribed to the mandatory channel, then
-// a completed bot name-registration — /auth/* stays open above so the
-// frontend can learn both states and render its own lock screens instead of
-// a bare 403. Channel check runs first, matching the bot-side gate order.
-apiRouter.use(requireChannelSubscription);
+// Certificate Test is intentionally open to every bot user — no mandatory
+// channel subscription, no "student" role required — so it's mounted after
+// only requireRegistered (a name is still needed for the certificate PDF
+// itself) and before requireChannelSubscription, letting Express fall
+// through past it entirely for any request certificatesRouter handles.
+// Every other feature still requires both gates, in the original order.
 apiRouter.use(requireRegistered);
+apiRouter.use(certificatesRouter);
+apiRouter.use(requireChannelSubscription);
 
 apiRouter.use(testsRouter);
 apiRouter.use(attendanceRouter);
 apiRouter.use(examsRouter);
-apiRouter.use(certificatesRouter);
 apiRouter.use(studentsRouter);
 apiRouter.use(analyticsRouter);
 apiRouter.use(leaderboardRouter);

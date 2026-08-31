@@ -3,14 +3,14 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Header } from "../../components/layout/Header";
 import { Card } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
-import { GuestLock } from "../../components/common/GuestLock";
 import { uz } from "../../i18n/uz";
-import { useAuth } from "../../context/AuthContext";
 import { accessCertificateTestByCode } from "../../api/certificates";
 import { ApiError } from "../../api/client";
 
+// Certificate Test is open to every bot user — no guest lock here, unlike
+// most other features in the app (channel subscription is also bypassed
+// for this section specifically, see AppLayout.tsx and backend/src/routes/index.ts).
 export function CertificateCodeEntryScreen() {
-  const { isGuest } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [code, setCode] = useState(() => searchParams.get("certCode") ?? "");
@@ -39,15 +39,6 @@ export function CertificateCodeEntryScreen() {
     if (fromLink) handleSubmit(fromLink);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  if (isGuest) {
-    return (
-      <div>
-        <Header title={uz.certificateTest.homeTitle} showBack />
-        <GuestLock />
-      </div>
-    );
-  }
 
   return (
     <div>
