@@ -11,7 +11,14 @@ import {
 
 export const studentsRouter = Router();
 
-studentsRouter.get("/students/me/dashboard", requireRole("student"), asyncHandler(getMyDashboard));
+// Guests see a reduced (mostly-empty) dashboard under the "Profil" tab
+// rather than being blocked outright — getStudentDashboard already degrades
+// gracefully to zeros/empty lists for an account with no activity yet.
+studentsRouter.get(
+  "/students/me/dashboard",
+  requireRole("student", "guest"),
+  asyncHandler(getMyDashboard)
+);
 studentsRouter.get("/students/groups", requireRole("admin"), asyncHandler(getStudentGroups));
 studentsRouter.get("/students", requireRole("admin"), asyncHandler(listStudents));
 studentsRouter.get("/students/:id", requireRole("admin"), asyncHandler(getStudentDetail));

@@ -25,6 +25,9 @@ export const uz = {
     exams: "Imtihon",
     admin: "Boshqaruv",
     dashboard: "Dashboard",
+    guides: "Qo'llanmalar",
+    certificates: "TMS testlar",
+    profile: "Profil",
   },
   home: {
     title: "To'xtama o'quvchi",
@@ -152,6 +155,8 @@ export const uz = {
   },
   dashboard: {
     title: "Mening natijalarim",
+    profileTitle: "Profil",
+    guestBanner: "Siz mehmon sifatida ko'rib turibsiz. Testlar yechishni boshlasangiz, natijalaringiz shu yerda ko'rinadi.",
     testsCompleted: "Bajarilgan testlar",
     averageScore: "O'rtacha ball",
     attendancePercentage: "Davomat foizi",

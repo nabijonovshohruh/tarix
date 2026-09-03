@@ -9,13 +9,28 @@ const baseItems = [
   { to: "/exams", label: uz.nav.exams, icon: "📝" },
 ];
 
-export function BottomNav() {
-  const { isAdmin } = useAuth();
-  const lastItem = isAdmin
-    ? { to: "/admin", label: uz.nav.admin, icon: "⚙️" }
-    : { to: "/dashboard", label: uz.nav.dashboard, icon: "👤" };
+// Guests never took a class, so Davomat/Imtihon (and the admin-only
+// Boshqaruv tab) are replaced with Qo'llanmalar and TMS testlar — matching
+// HomeScreen's own guest-specific tile list.
+const guestItems = [
+  { to: "/", label: uz.nav.home, icon: "🏠", end: true },
+  { to: "/tests", label: uz.nav.tests, icon: "📚" },
+  { to: "/materials/guides", label: uz.nav.guides, icon: "📖" },
+  { to: "/materials/certificates", label: uz.nav.certificates, icon: "🎓" },
+  { to: "/dashboard", label: uz.nav.profile, icon: "👤" },
+];
 
-  const items = [...baseItems, lastItem];
+export function BottomNav() {
+  const { isAdmin, isGuest } = useAuth();
+
+  const items = isGuest
+    ? guestItems
+    : [
+        ...baseItems,
+        isAdmin
+          ? { to: "/admin", label: uz.nav.admin, icon: "⚙️" }
+          : { to: "/dashboard", label: uz.nav.dashboard, icon: "👤" },
+      ];
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">

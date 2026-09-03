@@ -77,7 +77,7 @@ export const router = createBrowserRouter([
       {
         path: "/dashboard",
         element: (
-          <RequireRole role="student">
+          <RequireRole role={["student", "guest"]}>
             <DashboardScreen />
           </RequireRole>
         ),

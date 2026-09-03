@@ -6,6 +6,7 @@ import { Badge } from "../../components/common/Badge";
 import { EmptyState } from "../../components/common/EmptyState";
 import { Spinner } from "../../components/common/Spinner";
 import { uz } from "../../i18n/uz";
+import { useAuth } from "../../context/AuthContext";
 import { getMyDashboard } from "../../api/students";
 import { getMyTestResults } from "../../api/tests";
 import { StudentDashboard, TestResult } from "../../api/types";
@@ -13,6 +14,7 @@ import { StudentDashboard, TestResult } from "../../api/types";
 const activityIcon = { test: "📚", exam: "📝", attendance: "🗓️" } as const;
 
 export function DashboardScreen() {
+  const { isGuest } = useAuth();
   const [dashboard, setDashboard] = useState<StudentDashboard | null>(null);
   const [testResults, setTestResults] = useState<TestResult[] | null>(null);
 
@@ -25,8 +27,11 @@ export function DashboardScreen() {
 
   return (
     <div>
-      <Header title={uz.dashboard.title} />
+      <Header title={isGuest ? uz.dashboard.profileTitle : uz.dashboard.title} />
       <div className="space-y-4 p-4">
+        {isGuest && (
+          <Card className="text-sm text-slate-600 dark:text-slate-400">{uz.dashboard.guestBanner}</Card>
+        )}
         <div className="grid grid-cols-3 gap-3">
           <Card className="text-center">
             <p className="text-2xl font-bold text-brand-600 dark:text-brand-400">{dashboard.testsCompleted}</p>

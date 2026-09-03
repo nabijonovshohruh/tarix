@@ -4,7 +4,7 @@ import { Card } from "../../components/common/Card";
 import { uz } from "../../i18n/uz";
 import { useAuth } from "../../context/AuthContext";
 
-const tiles = [
+const fullTiles = [
   { to: "/tests", icon: "📚", title: uz.home.tests, desc: uz.home.testsDesc },
   { to: "/attendance", icon: "🗓️", title: uz.home.attendance, desc: uz.home.attendanceDesc },
   { to: "/exams", icon: "📝", title: uz.home.exams, desc: uz.home.examsDesc },
@@ -14,8 +14,19 @@ const tiles = [
   { to: "/certificate-test", icon: "🔑", title: uz.home.certificateTest, desc: uz.home.certificateTestDesc },
 ];
 
+// Guests never took a class, so Davomat (attendance) and Imtihon (exams)
+// aren't relevant to them — a reduced tile set, matching BottomNav's own
+// guest-specific item list.
+const guestTiles = [
+  { to: "/tests", icon: "📚", title: uz.home.tests, desc: uz.home.testsDesc },
+  { to: "/leaderboard", icon: "🏆", title: uz.home.leaderboard, desc: uz.home.leaderboardDesc },
+  { to: "/materials/guides", icon: "📖", title: uz.home.guides, desc: uz.home.guidesDesc },
+  { to: "/materials/certificates", icon: "🎓", title: uz.home.certificates, desc: uz.home.certificatesDesc },
+];
+
 export function HomeScreen() {
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
+  const tiles = isGuest ? guestTiles : fullTiles;
 
   return (
     <div>
