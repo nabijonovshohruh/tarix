@@ -11,17 +11,20 @@ const querySchema = z.object({
 export async function getLeaderboardHandler(req: Request, res: Response) {
   const { window, group } = querySchema.parse(req.query);
 
-  // Students can only ever see their own group's ranking — the query param
-  // is ignored for them, never trusted. Admins must explicitly pick a group.
+  // Students and guests can only ever see their own group's ranking — the
+  // query param is ignored for them, never trusted. Guests were never
+  // assigned to a paid class group, so they land on the same "no group yet"
+  // empty board a fresh student would, never another group's rankings.
+  // Admins must explicitly pick a group.
   let groupName: string;
-  if (req.user!.role === "student") {
+  if (req.user!.role === "admin") {
+    if (!group) throw new HttpError(400, "group query param is required");
+    groupName = group;
+  } else {
     if (!req.user!.groupName) {
       return res.json({ window, group: null, entries: [] });
     }
     groupName = req.user!.groupName;
-  } else {
-    if (!group) throw new HttpError(400, "group query param is required");
-    groupName = group;
   }
 
   const entries = await getLeaderboard(window, groupName);
