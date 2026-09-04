@@ -11,12 +11,14 @@ const baseItems = [
 
 // Guests never took a class, so Davomat/Imtihon (and the admin-only
 // Boshqaruv tab) are replaced with Qo'llanmalar and TMS testlar — matching
-// HomeScreen's own guest-specific tile list.
+// HomeScreen's own guest-specific tile list. "TMS testlar" points at the
+// interactive Certificate Test (PIN entry), not the static materials
+// category — that module has no role gating at all, for any role.
 const guestItems = [
   { to: "/", label: uz.nav.home, icon: "🏠", end: true },
   { to: "/tests", label: uz.nav.tests, icon: "📚" },
   { to: "/materials/guides", label: uz.nav.guides, icon: "📖" },
-  { to: "/materials/certificates", label: uz.nav.certificates, icon: "🎓" },
+  { to: "/certificate-test", label: uz.nav.certificates, icon: "🔑" },
   { to: "/dashboard", label: uz.nav.profile, icon: "👤" },
 ];
 

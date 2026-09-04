@@ -16,12 +16,14 @@ const fullTiles = [
 
 // Guests never took a class, so Davomat (attendance) and Imtihon (exams)
 // aren't relevant to them — a reduced tile set, matching BottomNav's own
-// guest-specific item list.
+// guest-specific item list. "TMS testlar" here is the interactive
+// Certificate Test (PIN entry), not the static materials category — see
+// certificate-test's own screens for why it has no role gating at all.
 const guestTiles = [
   { to: "/tests", icon: "📚", title: uz.home.tests, desc: uz.home.testsDesc },
-  { to: "/leaderboard", icon: "🏆", title: uz.home.leaderboard, desc: uz.home.leaderboardDesc },
+  { to: "/certificate-test", icon: "🔑", title: uz.home.certificateTest, desc: uz.home.certificateTestDesc },
   { to: "/materials/guides", icon: "📖", title: uz.home.guides, desc: uz.home.guidesDesc },
-  { to: "/materials/certificates", icon: "🎓", title: uz.home.certificates, desc: uz.home.certificatesDesc },
+  { to: "/leaderboard", icon: "🏆", title: uz.home.leaderboard, desc: uz.home.leaderboardDesc },
 ];
 
 export function HomeScreen() {
