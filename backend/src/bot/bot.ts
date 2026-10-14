@@ -1,13 +1,13 @@
 import { Bot, Context, GrammyError, HttpError, InlineKeyboard } from "grammy";
 import { env } from "../config/env";
 import { prisma } from "../db/prisma";
-import { getChannelUrl, invalidateChannelSubscription, isChannelSubscriber } from "../services/channelSubscription.service";
+import { getChannelUrls, invalidateChannelSubscription, isChannelSubscriber } from "../services/channelSubscription.service";
 import { broadcastMessage } from "../services/broadcast.service";
 
 export const bot = new Bot(env.BOT_TOKEN);
 
 const CHECK_SUBSCRIPTION_ACTION = "check_subscription";
-const NOT_SUBSCRIBED_TOAST = "Siz hali kanalga a'zo bo'lmagansiz. Qo'shiling va qayta tekshiring.";
+const NOT_SUBSCRIBED_TOAST = "Siz hali barcha kanallarga a'zo bo'lmagansiz. Qo'shiling va qayta tekshiring.";
 
 const NAME_PROMPT =
   "Xush kelibsiz! \"Tarix | Nabijonov Shohruh\" botidan foydalanish uchun avval ism va " +
@@ -69,16 +69,19 @@ async function creditReferralIfNeeded(student: { id: bigint; referredById: bigin
 
 function subscribeKeyboard() {
   const keyboard = new InlineKeyboard();
-  const channelUrl = getChannelUrl();
-  if (channelUrl) {
-    keyboard.url("📢 Kanalga a'zo bo'lish", channelUrl).row();
-  }
+  const urls = getChannelUrls();
+  const multiple = urls.filter(Boolean).length > 1;
+  urls.forEach((url, i) => {
+    if (url) {
+      keyboard.url(multiple ? `📢 ${i + 1}-kanalga a'zo bo'lish` : "📢 Kanalga a'zo bo'lish", url).row();
+    }
+  });
   return keyboard.text("✅ Tekshirish", CHECK_SUBSCRIPTION_ACTION);
 }
 
 async function sendSubscribePrompt(ctx: Context) {
   await ctx.reply(
-    "Botdan va Mini App'dan foydalanish uchun avval kanalimizga a'zo bo'ling, so'ngra \"Tekshirish\" tugmasini bosing:",
+    "Botdan va Mini App'dan foydalanish uchun avval barcha kanallarimizga a'zo bo'ling, so'ngra \"Tekshirish\" tugmasini bosing:",
     { reply_markup: subscribeKeyboard() }
   );
 }

@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import { bot } from "../bot/bot";
-import { getChannelUrl, invalidateChannelSubscription, isChannelSubscriber } from "../services/channelSubscription.service";
+import { getChannelUrls, invalidateChannelSubscription, isChannelSubscriber } from "../services/channelSubscription.service";
 
 export function getMe(req: Request, res: Response) {
-  res.json({ user: req.user, channelUrl: getChannelUrl() });
+  res.json({ user: req.user, channelUrls: getChannelUrls() });
 }
 
 // Called explicitly by the frontend's "recheck" action after a student says

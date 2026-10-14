@@ -5,7 +5,7 @@ import { AuthUser } from "../api/types";
 
 interface AuthContextValue {
   user: AuthUser | null;
-  channelUrl: string | null;
+  channelUrls: (string | null)[];
   loading: boolean;
   error: string | null;
   isAdmin: boolean;
@@ -19,7 +19,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [channelUrl, setChannelUrl] = useState<string | null>(null);
+  const [channelUrls, setChannelUrls] = useState<(string | null)[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
@@ -30,10 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     fetchMe()
-      .then(({ user, channelUrl }) => {
+      .then(({ user, channelUrls }) => {
         if (!cancelled) {
           setUser(user);
-          setChannelUrl(channelUrl);
+          setChannelUrls(channelUrls);
         }
       })
       .catch((err) => {
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        channelUrl,
+        channelUrls,
         loading,
         error,
         isAdmin: user?.role === "admin",

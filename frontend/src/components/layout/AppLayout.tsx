@@ -7,7 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import { uz } from "../../i18n/uz";
 
 export function AppLayout() {
-  const { user, channelUrl, loading, isAdmin, recheckChannelSubscription } = useAuth();
+  const { user, channelUrls, loading, isAdmin, recheckChannelSubscription } = useAuth();
   const location = useLocation();
   const [checking, setChecking] = useState(false);
   const [stillLocked, setStillLocked] = useState(false);
@@ -40,16 +40,24 @@ export function AppLayout() {
           <p className="text-4xl">🔒</p>
           <p className="font-semibold">{uz.channelSubscription.locked}</p>
           <p className="text-sm text-slate-500 dark:text-slate-400">{uz.channelSubscription.lockedHint}</p>
-          {channelUrl && (
-            <a
-              href={channelUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-600"
-            >
-              {uz.channelSubscription.openChannel}
-            </a>
-          )}
+          <div className="flex w-full flex-col gap-2">
+            {channelUrls.map(
+              (url, i) =>
+                url && (
+                  <a
+                    key={url}
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-600"
+                  >
+                    {channelUrls.filter(Boolean).length > 1
+                      ? `${uz.channelSubscription.openChannel} ${i + 1}`
+                      : uz.channelSubscription.openChannel}
+                  </a>
+                )
+            )}
+          </div>
           <Button variant="secondary" onClick={handleRecheck} disabled={checking}>
             {uz.channelSubscription.recheck}
           </Button>
