@@ -27,10 +27,13 @@ const BROADCAST_SENDING = "Yuborilmoqda, biroz kuting...";
 // a GUEST and you're auto-promoted to STUDENT + assigned to the "Konkurs"
 // group (see markAttendance's blanket restriction for that group — a
 // referral-won seat has no attendance obligation, by design).
-const REFERRAL_GOAL = 10;
+const REFERRAL_GOAL = 5;
 const KONKURS_UNLOCKED_MESSAGE =
-  "🎉 Tabriklaymiz! Siz 10 ta do'stingizni taklif qildingiz va endi \"Konkurs\" guruhi orqali " +
+  `🎉 Tabriklaymiz! Siz ${REFERRAL_GOAL} ta do'stingizni taklif qildingiz va endi "Konkurs" guruhi orqali ` +
   "talaba maqomiga ega bo'ldingiz. Endi Mini App orqali barcha materiallardan foydalanishingiz mumkin!";
+const REFERRAL_EXPLANATION =
+  "Botga tarixga qiziqadigan, tarixdan Milliy Sertifikat topshiradigan o'quvchini taklif qiling. " +
+  "Aks holda konkurs sharti bajarilmagan bo'ladi!";
 
 function isAdmin(telegramId: number) {
   return env.adminTelegramIds.has(telegramId.toString());
@@ -373,6 +376,8 @@ bot.command("konkurs", async (ctx) => {
     link
       ? `🔗 Sizning taklif havolangiz:\n${link}`
       : "Havola vaqtincha mavjud emas, birozdan so'ng qayta urinib ko'ring.",
+    "",
+    REFERRAL_EXPLANATION,
     "",
     `👥 Siz taklif qilgan do'stlar: ${invited} / ${REFERRAL_GOAL}`,
   ];
