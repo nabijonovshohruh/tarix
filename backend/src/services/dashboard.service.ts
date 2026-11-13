@@ -24,8 +24,15 @@ export async function getStudentDashboard(studentId: bigint) {
       include: { session: true },
       orderBy: { createdAt: "desc" },
     }),
+    // Only this student's own group's sessions count toward their
+    // denominator (plus any legacy ungated ones) — a different group's
+    // sessions were never theirs to attend, same scoping as
+    // attendance.service.ts's getActiveSession/markAttendance.
     prisma.attendanceSession.count({
-      where: { startTime: { gte: student.createdAt } },
+      where: {
+        startTime: { gte: student.createdAt },
+        OR: [{ groupName: null }, { groupName: student.groupName }],
+      },
     }),
   ]);
 

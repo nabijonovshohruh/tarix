@@ -4,7 +4,7 @@ import { prisma } from "../db/prisma";
 export async function buildAnalyticsWorkbook(): Promise<ExcelJS.Workbook> {
   const [students, sessions, attendanceRecords, testResults, examResults] = await Promise.all([
     prisma.student.findMany({ orderBy: { fullName: "asc" } }),
-    prisma.attendanceSession.findMany({ select: { startTime: true } }),
+    prisma.attendanceSession.findMany({ select: { startTime: true, groupName: true } }),
     prisma.attendanceRecord.findMany({ include: { student: true } }),
     prisma.testResult.findMany({ include: { student: true, test: true }, orderBy: { createdAt: "desc" } }),
     prisma.examResult.findMany({ include: { student: true, exam: true }, orderBy: { createdAt: "desc" } }),
@@ -28,7 +28,12 @@ export async function buildAnalyticsWorkbook(): Promise<ExcelJS.Workbook> {
   ];
   for (const student of students) {
     const present = presentCountByStudent.get(student.id.toString()) ?? 0;
-    const total = sessions.filter((s) => s.startTime >= student.createdAt).length;
+    // Only this student's own group's sessions count toward their
+    // denominator (plus any legacy ungated ones) — same scoping as
+    // dashboard.service.ts/leaderboard.service.ts.
+    const total = sessions.filter(
+      (s) => s.startTime >= student.createdAt && (s.groupName === null || s.groupName === student.groupName)
+    ).length;
     const percentage = total === 0 ? 0 : Math.round((present / total) * 10000) / 100;
     attendanceSheet.addRow({
       fullName: student.fullName,

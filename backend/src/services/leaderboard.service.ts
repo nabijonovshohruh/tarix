@@ -48,7 +48,13 @@ export async function getLeaderboard(
       where: { role: "STUDENT", groupName },
       select: { id: true, fullName: true, createdAt: true },
     }),
-    prisma.attendanceSession.findMany({ select: { startTime: true } }),
+    // Scoped to this leaderboard's group (plus legacy ungated sessions) —
+    // another group's sessions were never these students' to attend, same
+    // scoping as attendance.service.ts's getActiveSession/markAttendance.
+    prisma.attendanceSession.findMany({
+      where: { OR: [{ groupName: null }, { groupName }] },
+      select: { startTime: true },
+    }),
     prisma.testResult.groupBy({
       by: ["studentId"],
       _sum: { percentage: true },
