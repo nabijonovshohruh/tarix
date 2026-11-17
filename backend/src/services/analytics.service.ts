@@ -5,13 +5,17 @@ export async function buildAnalyticsWorkbook(): Promise<ExcelJS.Workbook> {
   const [students, sessions, attendanceRecords, testResults, examResults] = await Promise.all([
     prisma.student.findMany({ orderBy: { fullName: "asc" } }),
     prisma.attendanceSession.findMany({ select: { startTime: true, groupName: true } }),
-    prisma.attendanceRecord.findMany({ include: { student: true } }),
+    prisma.attendanceRecord.findMany({ include: { student: true, session: true } }),
     prisma.testResult.findMany({ include: { student: true, test: true }, orderBy: { createdAt: "desc" } }),
     prisma.examResult.findMany({ include: { student: true, exam: true }, orderBy: { createdAt: "desc" } }),
   ]);
 
   const presentCountByStudent = new Map<string, number>();
   for (const record of attendanceRecords) {
+    // A record from a session tagged for a group the student has since left
+    // (e.g. after being moved between groups) must not count toward their
+    // current group's total.
+    if (record.session.groupName !== null && record.session.groupName !== record.student.groupName) continue;
     const key = record.studentId.toString();
     presentCountByStudent.set(key, (presentCountByStudent.get(key) ?? 0) + 1);
   }

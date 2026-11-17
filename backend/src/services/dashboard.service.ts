@@ -44,10 +44,17 @@ export async function getStudentDashboard(studentId: bigint) {
           (testResults.reduce((sum, r) => sum + r.percentage, 0) / testsCompleted) * 100
         ) / 100;
 
+  // Numerator must be scoped the same way as the denominator above — a
+  // record from a session tagged for a group the student has since left
+  // (e.g. after being moved between groups) must not count toward their
+  // current group's percentage. The unfiltered attendanceRecords list is
+  // still used below for the recent-activity timeline, which intentionally
+  // shows full history regardless of group.
+  const eligibleAttendanceCount = attendanceRecords.filter(
+    (r) => r.session.groupName === null || r.session.groupName === student.groupName
+  ).length;
   const attendancePercentage =
-    sessionsSinceJoined === 0
-      ? 0
-      : Math.round((attendanceRecords.length / sessionsSinceJoined) * 10000) / 100;
+    sessionsSinceJoined === 0 ? 0 : Math.round((eligibleAttendanceCount / sessionsSinceJoined) * 10000) / 100;
 
   const activity: ActivityItem[] = [
     ...testResults.map((r) => ({

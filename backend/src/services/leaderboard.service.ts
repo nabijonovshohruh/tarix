@@ -69,10 +69,19 @@ export async function getLeaderboard(
       where: weekStart ? { createdAt: { gte: weekStart } } : undefined,
       orderBy: { studentId: "asc" },
     }),
+    // Only records for this group's (or legacy ungated) sessions count — a
+    // record from a session tagged for a group a student has since left
+    // (e.g. after being moved between groups) must not inflate this group's
+    // ranking.
     prisma.attendanceRecord.groupBy({
       by: ["studentId"],
       _count: true,
-      where: weekStart ? { session: { startTime: { gte: weekStart } } } : undefined,
+      where: {
+        session: {
+          OR: [{ groupName: null }, { groupName }],
+          ...(weekStart ? { startTime: { gte: weekStart } } : {}),
+        },
+      },
       orderBy: { studentId: "asc" },
     }),
   ]);
